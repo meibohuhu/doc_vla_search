@@ -264,7 +264,7 @@ DS (Driving Score) = RC × IP
 
 ## 8. 参考
 
-- [NAVSIM PDMS 定义](../navsim/docs/metrics.md)（仓库内）
+- [NAVSIM PDMS 定义](../../navsim/docs/metrics.md)（仓库内）
 - [WOD-E2E: Waymo Open Dataset for End-to-End Driving in Challenging Long-tail Scenarios (CVPR 2026)](https://arxiv.org/abs/2510.26125)
 - [Waymo Open Dataset Challenges（2026 无正式比赛）](https://waymo.com/open/challenges/)
 - [Do Open-Loop Metrics Predict Closed-Loop Driving? NAVSIM ↔ Bench2Drive 相关性研究](https://arxiv.org/html/2605.00066)

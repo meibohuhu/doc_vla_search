@@ -43,7 +43,7 @@ cd navsim && pip install -e . --no-warn-conflicts && cd ..
 
 | 命令 | 要不要 | 理由 |
 |---|---|---|
-| `pip install flash-attn==2.7.4.post1` | ❌ **跳过** | [autovla.py:480](../models/autovla.py) 的 `from_pretrained` 没传 `attn_implementation`，默认走 **sdpa**。装它纯粹是编译地狱 |
+| `pip install flash-attn==2.7.4.post1` | ❌ **跳过** | [autovla.py:480](../../models/autovla.py) 的 `from_pretrained` 没传 `attn_implementation`，默认走 **sdpa**。装它纯粹是编译地狱 |
 | `pip install waymo-open-dataset-tf-2-12-0` | ❌ **跳过** | 只有 Waymo 预处理要。它会拖一整个 TF 进来跟 `numpy==1.23.4` 打架 |
 | `pip install autoawq --no-deps` | ❌ **跳过** | 只有 72B CoT 标注要 |
 | `pip install --upgrade typing_extensions` | ✅ **执行** | |
@@ -104,12 +104,12 @@ ln -s /data/autovla_data $AUTOVLA_ROOT/dataset
 | navtrain sensor | 445G（无 history 版 300G） | 出正式数字时 |
 | trainval 全量 | **>2000G** | ❌ 永远不要 |
 
-**省一半的关键**：`VlaAgent.get_sensor_config()` 里 `lidar_pc=False`（[vla_agent.py:150](../navsim/navsim/agents/vla_agent.py)），AutoVLA 全程不用点云。
+**省一半的关键**：`VlaAgent.get_sensor_config()` 里 `lidar_pc=False`（[vla_agent.py:150](../../navsim/navsim/agents/vla_agent.py)），AutoVLA 全程不用点云。
 → **把 `navsim/download/download_mini.sh` 里第二个 lidar 循环整段删掉。**
 
 ### 2.3 目录结构是硬约束
 
-[nuplan_dataset.py:42-43](../dataset_utils/preprocessing/nuplan_dataset.py) 把配置里 `dataset_path` 的字符串 `placeholder` 分别替换成 `navsim_logs` / `sensor_blobs`：
+[nuplan_dataset.py:42-43](../../dataset_utils/preprocessing/nuplan_dataset.py) 把配置里 `dataset_path` 的字符串 `placeholder` 分别替换成 `navsim_logs` / `sensor_blobs`：
 
 ```python
 data_path      = self.data_path.replace('placeholder', 'navsim_logs')
@@ -142,7 +142,7 @@ dataset_path: ./dataset/nuplan/placeholder/mini    # 原: .../placeholder/mini�
 scene_filter: ./navsim/navsim/planning/script/config/common/train_test_split/scene_filter/navmini.yaml
 ```
 
-**为什么能把 72B 换成 3B**：no-CoT 路径下 processor 只用来 `apply_chat_template` 拼一个字符串，而 [nocot_sample_generation.py::process_sample](../tools/preprocessing/nocot_sample_generation.py) **根本不保存那个字符串** —— 输出 JSON 只有 `token / velocity / acceleration / instruction / gt_trajectory / his_trajectory / *_camera_paths`。所以 processor 是谁无所谓。
+**为什么能把 72B 换成 3B**：no-CoT 路径下 processor 只用来 `apply_chat_template` 拼一个字符串，而 [nocot_sample_generation.py::process_sample](../../tools/preprocessing/nocot_sample_generation.py) **根本不保存那个字符串** —— 输出 JSON 只有 `token / velocity / acceleration / instruction / gt_trajectory / his_trajectory / *_camera_paths`。所以 processor 是谁无所谓。
 
 ### 3.2 跑
 
@@ -270,11 +270,11 @@ w = floor(1920/4.347/28)*28 = 15*28 = 420
 
 参照：InternVL2 一个 448×448 tile = 256 token。**AutoVLA 每帧只有半个 tile 的信息量。**
 
-> **不一致点（当前无害，改前必看）**：训练路径用的是硬编码的 `28*28*128 = 100352`（[sft_dataset.py:266](../dataset_utils/sft_dataset.py)），config 的 `109760` 只在推理/RFT 的 `get_prompt` 生效（[autovla.py:531](../models/autovla.py)）。两个预算在 16:9 输入下因为 floor 取整**恰好都落到 224×420**，所以目前没差。但改分辨率或换非 16:9 数据源时这俩会分叉 —— **改 config 记得同步改代码**。
+> **不一致点（当前无害，改前必看）**：训练路径用的是硬编码的 `28*28*128 = 100352`（[sft_dataset.py:266](../../dataset_utils/sft_dataset.py)），config 的 `109760` 只在推理/RFT 的 `get_prompt` 生效（[autovla.py:531](../../models/autovla.py)）。两个预算在 16:9 输入下因为 floor 取整**恰好都落到 224×420**，所以目前没差。但改分辨率或换非 16:9 数据源时这俩会分叉 —— **改 config 记得同步改代码**。
 
 ### 5.2 监督信号极稀疏（别看到 loss 掉得慢就慌）
 
-`use_cot=false` 时 `has_cot` 恒为 False → [autovla.py:358](../models/autovla.py) 的 `loss*40 + action_loss` 分支**永不触发**，loss 就是纯 LM loss。而 assistant 段里除了 10 个 action token，其余全是固定模板（`<answer>\nThe final output action is: `），几百步就学死了。
+`use_cot=false` 时 `has_cot` 恒为 False → [autovla.py:358](../../models/autovla.py) 的 `loss*40 + action_loss` 分支**永不触发**，loss 就是纯 LM loss。而 assistant 段里除了 10 个 action token，其余全是固定模板（`<answer>\nThe final output action is: `），几百步就学死了。
 
 **净效果：每个样本跑 720 视觉 token + 3B 前向，只换来约 10 个有效监督 token。** 数据效率天生就低 —— 这就是原配方要 5 epochs 的原因。
 
@@ -293,9 +293,9 @@ w = floor(1920/4.347/28)*28 = 15*28 = 420
 | ③ | `download_mini.sh` | 删掉 lidar 循环，省一半；解出的目录名要手动搬成两级结构 |
 | ④ | `nocot_sample_generation.py` | `--num_workers` 默认 32，本机 8 核；且每样本白白 base64 编码 16 张图 |
 | ⑤ | `run_sft.py` | `devices='auto'` 吃满 8 卡；`num_workers=4`×8 卡 = 32 workers 打爆 8 核 CPU |
-| ⑥ | [sft_dataset.py:334](../dataset_utils/sft_dataset.py) | `apply_chat_template(add_generation_prompt=True)` 却带着 assistant turn → 答案后多拼一段空的 `<\|im_start\|>assistant\n`。collator 找**第一个** `[151644, 77091]` 做 mask 起点，功能上没错，但模型会被训着预测那段尾巴。loss 曲线诡异时先查这里 |
+| ⑥ | [sft_dataset.py:334](../../dataset_utils/sft_dataset.py) | `apply_chat_template(add_generation_prompt=True)` 却带着 assistant turn → 答案后多拼一段空的 `<\|im_start\|>assistant\n`。collator 找**第一个** `[151644, 77091]` 做 mask 起点，功能上没错，但模型会被训着预测那段尾巴。loss 曲线诡异时先查这里 |
 | ⑦ | `run_sft.py` 构造顺序 | 必须先建 `SFTDataset`（给 `processor.tokenizer` 加 2048 个 `<action_i>`）再建 model（内部 `resize_token_embeddings`）。**别调换这两行** |
-| ⑧ | [autovla_agent.py:255-261](../navsim/navsim/agents/autovla_agent.py) | nuPlan 的 JSON 用 `left/right_camera_paths` 当 front-left/right；其他数据集用 `front_left/right_camera_paths`。靠 `dataset_name` 分支 normalize |
+| ⑧ | [autovla_agent.py:255-261](../../navsim/navsim/agents/autovla_agent.py) | nuPlan 的 JSON 用 `left/right_camera_paths` 当 front-left/right；其他数据集用 `front_left/right_camera_paths`。靠 `dataset_name` 分支 normalize |
 | ⑨ | codebook | 别重跑 `action_token_cluster.sh`，用仓库自带的 `agent_vocab.pkl` |
 | ⑩ | eval config | README 提到的 `config/training/qwen2.5-vl-3B-nusc-sft.yaml` **不存在**，只有 `config/eval/qwen2.5-vl-3B-nusc-sft-eval.yaml` |
 
@@ -305,7 +305,7 @@ w = floor(1920/4.347/28)*28 = 15*28 = 420
 
 ### 7.1 先 nuPlan-only，**不要**上 nuPlan+nuScenes 混合
 
-论文正式结果用的是 `mix-sft`，但那个配方的存在意义**跟 CoT 绑定**：nuScenes 进来主要是蹭 **DriveLM 的免费 CoT**（[sft_dataset.py:196-225](../dataset_utils/sft_dataset.py) 专门解 `len(gt_cot)==5` 的五段式标注）。`use_cot=false` 时该分支根本不执行，nuScenes 退化成「又一批没有 CoT 的轨迹」。
+论文正式结果用的是 `mix-sft`，但那个配方的存在意义**跟 CoT 绑定**：nuScenes 进来主要是蹭 **DriveLM 的免费 CoT**（[sft_dataset.py:196-225](../../dataset_utils/sft_dataset.py) 专门解 `len(gt_cot)==5` 的五段式标注）。`use_cot=false` 时该分支根本不执行，nuScenes 退化成「又一批没有 CoT 的轨迹」。
 
 代价却不小：多下 ~400G、要单独建 conda env（`nuscenes-devkit` 冲突）、多一个 camera key 命名的出错面。而 PDMS 评测本来只在 nuPlan navtest 上做。
 
@@ -330,7 +330,7 @@ AutoVLA 与 SimLingo 的配方**完全反过来**：
 
 | | vision encoder | LLM |
 |---|---|---|
-| **SimLingo** | **全量训练**（[config.py:11](../../../simlingo_training/config.py) `freeze: bool = False`） | **LoRA** r=16 / α=32 |
+| **SimLingo** | **全量训练**（[config.py:11](../../../../simlingo_training/config.py) `freeze: bool = False`） | **LoRA** r=16 / α=32 |
 | **AutoVLA SFT** | **冻结** | **全参，无 LoRA** |
 | **AutoVLA RFT** | **冻结** | **LoRA** r=8, q/k/v/o_proj |
 
@@ -344,14 +344,14 @@ AutoVLA 与 SimLingo 的配方**完全反过来**：
 
 ### 真要试解冻，三个必补的坑
 
-改 `train_vision_backbone: true` 一行就生效（[autovla.py:384-386](../models/autovla.py) 会照做），但直接开会踩：
+改 `train_vision_backbone: true` 一行就生效（[autovla.py:384-386](../../models/autovla.py) 会照做），但直接开会踩：
 
 - **(a) 没有分层 lr（最要命）** —— 解冻后 ViT 和 LLM 共用 `2e-5`，对 675M 的 ViT 偏大，容易几百步毁掉预训练特征。
   注意 SimLingo 那边 lr=3e-5 看着更大，但它 **LLM 走 LoRA**，等效更新量小，ViT 是主导；AutoVLA 是 LLM 全参，两边抢同一个 lr。
   → 在 `configure_optimizers` 里给 `vlm.visual` 单开 param group，lr 设 `2e-6`。约 5 行。
-- **(b) FSDP wrap policy 漏了 ViT** —— [run_sft.py:107-112](../tools/run_sft.py) 只 wrap `Qwen2_5_VLDecoderLayer`，`Qwen2_5_VLVisionBlock` 不在里面 → 解冻后 ViT 参数**不分片**，每卡各存一份 optimizer state，约 +8G/卡。
+- **(b) FSDP wrap policy 漏了 ViT** —— [run_sft.py:107-112](../../tools/run_sft.py) 只 wrap `Qwen2_5_VLDecoderLayer`，`Qwen2_5_VLVisionBlock` 不在里面 → 解冻后 ViT 参数**不分片**，每卡各存一份 optimizer state，约 +8G/卡。
   → 把 `Qwen2_5_VLVisionBlock` 加进 wrap policy。
-- **(c) gradient checkpointing 没覆盖 ViT** —— [run_sft.py:63](../tools/run_sft.py) 只对 `vlm.model`（LLM）开了，12 张图的 ViT 激活全留着。
+- **(c) gradient checkpointing 没覆盖 ViT** —— [run_sft.py:63](../../tools/run_sft.py) 只对 `vlm.model`（LLM）开了，12 张图的 ViT 激活全留着。
 
 **结论：先按原配方（冻结）跑 baseline，解冻当成独立的后置消融。** 否则它会成为 reasoning 收益归因的混淆变量。
 

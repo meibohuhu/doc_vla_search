@@ -9,7 +9,8 @@ from transformers import AutoProcessor
 from torch.utils.data import DataLoader
 import shutil
 from dataset_utils.preprocessing.nuplan_dataset import NuplanCoTAnnotationDataset, DataCollator as NuplanDataCollator
-from dataset_utils.preprocessing.waymo_e2e_dataset import WaymoE2ECoTAnnotationDataset, DataCollator as WaymoDataCollator
+# waymo_e2e_dataset 在模块顶层 `import tensorflow`，只跑 nuPlan 时不该被拖进来 mh 26-07-21
+# （TF 会跟 requirements 里钉死的 numpy==1.23.4 冲突）。改为按需惰性导入。
 
 
 CAM_LIST = ['front', 'front_left', 'front_right', 
@@ -81,8 +82,21 @@ if __name__ == "__main__":
     parser.add_argument("--pre_generated_dir", type=str, default=None,
                         help="Directory containing pre-generated scene JSON files")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--fast", action="store_true",
+                        help="启用 fast_nocot_patch：跳过 no-CoT 下被丢弃的图像解码/base64/"
+                             "vision 预处理。实测输出逐字节一致，约 600x 提速。仅限 no-CoT。")  ## mh 26-07-21
     args = parser.parse_args()
     seed_everything(args.seed)
+
+### mh 26-07-21
+    # 必须在构造 dataset 之前打补丁；DataLoader worker 是 fork 出来的，会继承补丁状态。
+    # 注意：补丁放在 dataset_utils/preprocessing/0721/ 下，而 Python 模块名不能以数字开头
+    #（`from ...0721.fast_nocot_patch import` 是 SyntaxError），故用 importlib 按字符串导入。
+    if args.fast:
+        import importlib
+        _apply_fast = importlib.import_module(
+            "dataset_utils.preprocessing.0721.fast_nocot_patch").apply
+        _apply_fast()
 
     # load pre generated tokens
     print("Collecting pre generated tokens from JSON sample files...")
@@ -111,6 +125,9 @@ if __name__ == "__main__":
         dataset = NuplanCoTAnnotationDataset(config, processor)
         collator = NuplanDataCollator(processor)
     elif dataset_name == "waymo":
+        # 惰性导入：只有真的跑 waymo 才需要 tensorflow mh 26-07-21
+        from dataset_utils.preprocessing.waymo_e2e_dataset import (
+            WaymoE2ECoTAnnotationDataset, DataCollator as WaymoDataCollator)
         dataset = WaymoE2ECoTAnnotationDataset(config, processor)
         collator = WaymoDataCollator(processor)
     else:
