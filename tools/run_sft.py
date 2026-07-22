@@ -70,7 +70,29 @@ if __name__ == "__main__":
     val_dataset = SFTDataset(config['data']['val'], config['model'], processor, using_cot=using_cot)
 
     model = SFTAutoVLA(config)
-    model.autovla.vlm.model.gradient_checkpointing_enable() # enable gradient checkpointing to save memory
+
+######################################################### 修改这里 #########################################################
+    # [mh 2026/07/22] 原版只写 gradient_checkpointing_enable()，默认走 reentrant 版本，
+    # 在 DDP 下会触发 reducer 的 expect_autograd_hooks_ 报错；显式指定 use_reentrant=False。
+    # non-reentrant checkpointing is required for DDP static_graph (reentrant trips
+    # reducer expect_autograd_hooks_) and is the recommended variant for FSDP too
+    model.autovla.vlm.model.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    ) # enable gradient checkpointing to save memory
+
+    # [mh 2026/07/22] 上面那句只覆盖 LLM，不含 ViT。ViT 冻结时无所谓（不留激活），
+    # 但一旦解冻 ViT，每条样本 3 相机 x 4 帧 = 12 张图的激活都要留着，显存会爆，
+    # 所以这里给 ViT 也单独开一次 checkpointing。
+    # The LLM call above does NOT cover the vision tower. With a frozen ViT that is
+    # fine (no activations retained), but once train_vision_backbone is on, the
+    # activations of 12 images/sample are kept and blow up memory -- so checkpoint
+    # the ViT too.
+    if config['model'].get('train_vision_backbone', False):
+        model.autovla.vlm.visual.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False}
+        )
+        print("[mem] gradient checkpointing enabled on vision tower (ViT unfrozen)")
+######################################################### 修改这里 #########################################################
 
     # checkpoint_path = Path(".ckpt")
     # state_dict = torch.load(checkpoint_path)['state_dict']
@@ -109,14 +131,36 @@ if __name__ == "__main__":
 
     current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     save_dir = f"runs/sft/{current_date}"
-    
-    trainer = pl.Trainer(
-        num_nodes=1,
-        max_epochs=config['training']['epochs'],
-        accelerator="gpu",
-        devices='auto',
-        accumulate_grad_batches=config['training']['accumulate_grad_batches'],
-        strategy=FSDPStrategy(
+
+######################################################### 修改这里 #########################################################
+    # [mh 2026/07/22] 原版写死 FSDP，这里改成由 config 的 training.strategy 选择（默认仍是 fsdp）。
+    # 理由：FSDP FULL_SHARD 每层前向都要 all-gather 参数，只有模型单卡装不下时才划算；
+    # 3B 模型单卡放得下，用 DDP（参数各卡各存一份、每步只 all-reduce 一次梯度）快得多，
+    # 尤其我们这台机器没有 NVLink、NCCL 被迫走 loopback 网络传输，通信极慢。
+    # Parallelism strategy is config-selectable. FSDP FULL_SHARD is only worth its
+    # heavy per-layer param all-gather when the model doesn't fit; for a model that
+    # fits on one GPU it is far cheaper to replicate params (DDP) and all-reduce
+    # gradients once per step -- especially when the interconnect is slow (e.g. no
+    # NVLink / NCCL forced onto the loopback NET transport).
+    strategy_name = config['training'].get('strategy', 'fsdp')
+    trainer_precision = "32-true"  # FSDP 内部自己处理低精度，Trainer 这层保持 32  /  FSDP handles low precision inside the strategy
+    if strategy_name == 'ddp':
+        from pytorch_lightning.strategies import DDPStrategy
+        # [mh 2026/07/22] find_unused_parameters=True 必须开：Qwen2.5-VL 有一部分参数不在
+        # 这个 loss 的前向路径上，普通 DDP 会直接报错。static_graph 不能开——梯度累积的
+        # no_sync 区间里它会触发 reducer expect_autograd_hooks_ 断言。
+        # find_unused_parameters=True: some Qwen2.5-VL params are not on the forward
+        # path for this loss, which plain DDP rejects. static_graph is avoided because
+        # it trips reducer expect_autograd_hooks_ under grad-accumulation no_sync.
+        strategy = DDPStrategy(
+            find_unused_parameters=True,
+            gradient_as_bucket_view=True,
+        )
+        # [mh 2026/07/22] 模型本来就是 bf16 加载的，这里对齐 FSDP 的 param_dtype
+        trainer_precision = "bf16-true"        # model is already loaded in bf16 (matches FSDP param_dtype)
+######################################################### 修改这里 #########################################################
+    else:
+        strategy = FSDPStrategy(
             auto_wrap_policy=wrap_policy,
             cpu_offload=False,
             # Mixed precision training
@@ -132,7 +176,32 @@ if __name__ == "__main__":
             # save state dict type
             state_dict_type="full", # can be full or sharded
             limit_all_gathers=True, # limit all_gathers to save memory
-        ),
+        )
+
+######################################################### 修改这里 #########################################################
+    # [mh 2026/07/22] 加 wandb 支持，用 config 的 training.logger 开关（默认 csv）。
+    # CSVLogger 永远保留，保证 runs/sft/<时间戳>/lightning_logs/.../metrics.csv 还能离线解析；
+    # wandb 只是叠加上去。config=config 把整份配置一起上传，方便多次实验横向对比。
+    # CSVLogger is always kept (runs/sft/<ts>/lightning_logs/.../metrics.csv stays
+    # parseable); wandb is added on top when training.logger == 'wandb'.
+    loggers = [CSVLogger(save_dir=f"{save_dir}")]
+    if config['training'].get('logger', 'csv') == 'wandb':
+        from pytorch_lightning.loggers import WandbLogger
+        loggers.append(WandbLogger(
+            project=config['training'].get('wandb_project', 'autovla-sft'),
+            name=f"{config['name']}_{current_date}",
+            save_dir=save_dir,
+            config=config,          # log the full run config for comparability
+        ))
+
+    trainer = pl.Trainer(
+        num_nodes=1,
+        max_epochs=config['training']['epochs'],
+        accelerator="gpu",
+        devices='auto',
+        precision=trainer_precision,
+        accumulate_grad_batches=config['training']['accumulate_grad_batches'],
+        strategy=strategy,
         callbacks=[
             ModelCheckpoint(
                 monitor="val_loss",
@@ -149,8 +218,8 @@ if __name__ == "__main__":
         ],
         gradient_clip_algorithm = 'value',
         gradient_clip_val = 1.0,
-
-        logger=CSVLogger(save_dir=f"{save_dir}"),
+######################################################### 修改这里 #########################################################
+        logger=loggers,
         enable_model_summary=True,
 
         # limit_val_batches=0.001

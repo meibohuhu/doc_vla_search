@@ -389,18 +389,45 @@ class SFTAutoVLA(pl.LightningModule):
             for param in self.autovla.vlm.model.parameters():
                 param.requires_grad = False
 
-        params_to_update = []
-        for param in self.autovla.vlm.parameters():
-            if param.requires_grad == True:
-                params_to_update.append(param)
+######################################################### 修改这里 #########################################################
+        lr = float(self.cfg['training']['learning_rate'])
+        # [mh 2026/07/22] 原版所有可训练参数共用一个 lr。这里把 ViT 拆成独立的参数组：
+        # 主 lr（2e-5）是按 LLM 调的，对一个预训练好的 ViT 来说太大——解冻 ViT 时共用这个 lr，
+        # 几百步就能把预训练的视觉特征训坏。config 不写 vision_learning_rate 时它等于 lr，
+        # 所以行为和原版完全一致（ViT 冻结的 baseline 不受影响）。
+        # Separate param group for the vision tower. The main lr (2e-5) is tuned for
+        # the LLM and is too large for a pretrained ViT -- when train_vision_backbone
+        # is on, sharing it can wreck the pretrained features within a few hundred
+        # steps. Defaults to `lr`, so behaviour is unchanged when left unset.
+        vision_lr = float(self.cfg['training'].get('vision_learning_rate', lr))
 
-        assert len(params_to_update) > 0, 'No parameters to update'
+        # [mh 2026/07/22] 按 id() 区分 ViT 参数和其余参数（不能按名字，这里拿到的是裸 Parameter）
+        vision_param_ids = {id(p) for p in self.autovla.vlm.visual.parameters()}
+        vision_params, other_params = [], []
+        for param in self.autovla.vlm.parameters():
+            if not param.requires_grad:
+                continue
+            (vision_params if id(param) in vision_param_ids else other_params).append(param)
+
+        assert vision_params or other_params, 'No parameters to update'
+
+        # [mh 2026/07/22] 两个参数组分别带自己的 lr；ViT 全冻结时 vision_params 为空，
+        # 就退化成原来的单组写法。下面 print 出来是为了在日志里核对到底解冻了多少参数。
+        param_groups = []
+        if other_params:
+            param_groups.append({'params': other_params, 'lr': lr})
+        if vision_params:
+            param_groups.append({'params': vision_params, 'lr': vision_lr})
+            print(f"[optim] vision tower trainable: {sum(p.numel() for p in vision_params)/1e6:.0f}M "
+                  f"params @ lr={vision_lr:g} | rest: "
+                  f"{sum(p.numel() for p in other_params)/1e6:.0f}M @ lr={lr:g}")
 
         optimizer = torch.optim.AdamW(
-            params_to_update,
-            lr=self.cfg['training']['learning_rate'],
-            weight_decay=self.cfg['training'].get('weight_decay', 0.0)
+            param_groups,
+            lr=lr,
+            weight_decay=float(self.cfg['training'].get('weight_decay', 0.0))
         )
+######################################################### 修改这里 #########################################################
         lr_warmpup_step = self.cfg['training']['lr_warmup_step']
         lr_step_freq = self.cfg['training']['lr_step_frequency']
         lr_step_gamma = self.cfg['training']['lr_step_gamma']
@@ -470,6 +497,20 @@ class SFTAutoVLA(pl.LightningModule):
 
         return start_idx
 
+######################################################### 修改这里 #########################################################
+def load_vlm(model_path, device):
+    """Load the VLM backbone.
+
+    [mh 2026/07/22] 单独抽出来做一个统一的加载入口，行为和原版写死的
+    Qwen2_5_VLForConditionalGeneration.from_pretrained 完全一致。
+    之前这里有一段按 checkpoint 的 model_type 自动切 Qwen3-VL 模型类的逻辑，
+    现在先删掉（Qwen3-VL 需要 transformers>=4.57，当前环境用不上）；
+    以后要换 backbone 只改这一个函数即可。
+    """
+    return Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        model_path, torch_dtype=torch.bfloat16, device_map=device
+    )
+######################################################### 修改这里 #########################################################
 
 class AutoVLA(torch.nn.Module):
     def __init__(self, config, inference=False, device='cpu'):
@@ -477,11 +518,7 @@ class AutoVLA(torch.nn.Module):
         self.device = device
 
         model_path = config['model']['pretrained_model_path']
-        self.vlm = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_path,
-            torch_dtype=torch.bfloat16,
-            device_map=device
-        )
+        self.vlm = load_vlm(model_path, device)
         self.processor = AutoProcessor.from_pretrained(model_path)
         self.action_tokenizer = ActionTokenizer(self.processor.tokenizer, 
                                                 model_config=config['model'])
