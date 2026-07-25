@@ -1,0 +1,41 @@
+name: autovla-navtest-eval-nocot
+description: |
+  评测【no-CoT SFT】checkpoint 用的配置（AutoVLAAgent(config_path=...) 加载）。
+
+  ⚠️ 与 config/eval/0721/autovla-navtest-eval.yaml 的唯一实质差别是 use_cot。
+  务必按 checkpoint 的训练方式选：
+    * 作者发布的 AutoVLA_PDMS_89.ckpt  -> use_cot: true （CoT 训练 + RFT）
+    * 本地 no-CoT SFT 的 ckpt          -> use_cot: false（本文件）
+
+  为什么不能混用：get_prompt() 会按 use_cot 走两套完全不同的 system prompt
+  （models/autovla.py:634 起）。no-CoT 训练的模型见到 CoT 版 prompt 属于
+  分布外输入，分数会无端偏低，而且不会报错——只会得到一个"看起来就是差"的结果。
+
+model:
+  use_cot: false                # ★ 与 training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev.yaml 一致
+
+  pretrained_model_path: /data/autovla_data/Qwen2.5-VL-3B-Instruct
+  codebook_cache_path: codebook_cache/agent_vocab.pkl
+
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+inference:
+  batch_size: 1
+  num_workers: 1
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

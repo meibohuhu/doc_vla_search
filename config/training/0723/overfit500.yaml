@@ -1,0 +1,64 @@
+name: overfit500
+description: |
+  【诊断实验，非正式训练】500 样本过拟合测试。
+
+  目的：判断 SFT 卡在 action top-1 ≈ 17% 是"数据不够/太难"还是"架构或实现学不了"。
+    * 若 500 个样本能拟合到 top-1 > 90%  -> 模型有能力，问题在数据规模/分布
+    * 若连 500 个都拟合不上来            -> 架构/实现层面有问题（如冻结 ViT 的
+                                            视觉表征不足以区分场景）
+
+  与主训练(qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev.yaml)的差异，仅为让
+  "能不能记住"这件事在可接受时间内出结果：
+    * 数据 500 个（train 和 val 用【同一批】，我们要测的就是记忆能力）
+    * accumulate_grad_batches 4 -> 1（同样 epoch 数下优化步数 x4）
+    * epochs 6 -> 40
+  其余（ViT 冻结、LLM 全参、lr 2e-5、batch_size 2）与主训练一致，避免引入额外变量。
+
+model:
+  use_cot: false
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: false      # 与主训练一致：ViT 冻结
+  train_lm_backbone: true
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  strategy: ddp
+  batch_size: 2
+  learning_rate: 2.0e-5             # 与主训练一致，避免"lr 不同"成为混淆变量
+  epochs: 40
+  num_workers: 4
+  weight_decay: 0.01
+  lr_warmup_step: 50                # 500 样本，warmup 按比例缩短
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null
+  accumulate_grad_batches: 1        # 提高优化步数密度
+
+data:
+  train:
+    json_dataset_path: /data/autovla_data/nuplan/overfit500
+    sensor_data_path: /data/autovla_data/nuplan/sensor_blobs/trainval
+  val:
+    # ★ 故意与 train 相同：本实验测的是"能否记住见过的样本"
+    json_dataset_path: /data/autovla_data/nuplan/overfit500
+    sensor_data_path: /data/autovla_data/nuplan/sensor_blobs/trainval
+
+inference:
+  batch_size: 1
+  num_workers: 2
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

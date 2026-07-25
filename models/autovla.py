@@ -14,6 +14,10 @@ from models.action_tokenizer import ActionTokenizer
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from models.utils.score import PDM_Reward, TrajectorySampling, Trajectory
 
+# # SFT 时 CoT 样本 assistant 回复的固定前缀（dataset_utils/sft_dataset.py:188）。
+# # 设环境变量 AUTOVLA_FORCE_COT=1 时用它 prefill，强制模型走 slow thinking 分支。
+# FORCE_COT_PREFIX = "<think>\nThis is a complex scenario requiring additional reasoning.\n"
+
 
 class GRPOAutoVLA(pl.LightningModule):
     def __init__(self, config: dict, inference=False):
@@ -354,6 +358,24 @@ class SFTAutoVLA(pl.LightningModule):
         if action_loss.numel() > 0:
             action_loss = action_loss.mean()
 
+######################################################### 修改这里 #########################################################
+        # [mh 2026/07/24] 把 action token 的 loss / top-1 单独记录出来。
+        # 原版只 log 总 loss，而总 loss 里约 69% 是早已学到 ~0 的固定模板 token
+        # （"<answer>The final output action is:" 这些），只有 ~31% 是真正要学的
+        # 10 个 <action_i>。结果就是 val_loss=1.05 看着"在收敛"，实际 action loss
+        # 还有 3.3（困惑度 27），模型根本没学会开车——这个假象曾让我们误判为
+        # 数据不足/欠拟合，实际是 bf16 master 导致参数没更新（见 run_sft.py 的精度注释）。
+        # 教训：永远盯真正要学的那部分 loss，不要盯被模板稀释过的平均值。
+        with torch.no_grad():
+            if action_mask.any():
+                _al = ce_loss_all[action_mask].mean()
+                _acc = (logits_flat[action_mask].argmax(-1) == labels_flat[action_mask]).float().mean()
+                self.log("train_action_loss", _al, sync_dist=True, prog_bar=True,
+                         batch_size=gt_action.shape[0])
+                self.log("train_action_top1", _acc, sync_dist=True, prog_bar=True,
+                         batch_size=gt_action.shape[0])
+######################################################### 修改这里 #########################################################
+
         # # add more penalty for CoT reasoning data
         if hascot[0] == True:
             # print("add more penalty for CoT reasoning data")
@@ -377,6 +399,22 @@ class SFTAutoVLA(pl.LightningModule):
         self.log("val_loss", loss.item(),
                  batch_size=gt_action.shape[0],
                  sync_dist=True, prog_bar=True)
+
+######################################################### 修改这里 #########################################################
+        # [mh 2026/07/24] 同 training_step：val_loss 被模板 token 稀释，
+        # 选 checkpoint / 判断是否收敛都应该看 val_action_loss 和 val_action_top1。
+        with torch.no_grad():
+            _lg = output.logits[..., :-1, :].contiguous().view(-1, output.logits.size(-1))
+            _lb = batch['labels'][..., 1:].contiguous().view(-1)
+            _m = _lb >= self.autovla.action_start_id
+            if _m.any():
+                _al = F.cross_entropy(_lg[_m].float(), _lb[_m])
+                _acc = (_lg[_m].argmax(-1) == _lb[_m]).float().mean()
+                self.log("val_action_loss", _al, sync_dist=True, prog_bar=True,
+                         batch_size=gt_action.shape[0])
+                self.log("val_action_top1", _acc, sync_dist=True, prog_bar=True,
+                         batch_size=gt_action.shape[0])
+######################################################### 修改这里 #########################################################
         
         return loss
     
@@ -534,13 +572,20 @@ class AutoVLA(torch.nn.Module):
         inputs = self.get_prompt(input_features)
         model_inputs = {k: v.to(self.device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
+        # --- mh 26-07-23: 噪声对照实验用的采样覆盖 ---
+        # 默认 temperature=0.01（近乎贪心，每次吐同一串 action token）。
+        # 设 AUTOVLA_SAMPLE_TEMP/TOP_P 可覆盖，用于检验"CoT 救回归零场景"到底是
+        # 推理起作用，还是仅仅换了个采样把越界的 token 换掉了（对照组：不开 CoT，只加温度）。
+        _temp = float(os.environ.get("AUTOVLA_SAMPLE_TEMP", self.gen_conf['temperature']))
+        _top_p = float(os.environ.get("AUTOVLA_SAMPLE_TOP_P", self.gen_conf['top_p']))
+        _top_k = int(os.environ.get("AUTOVLA_SAMPLE_TOP_K", self.gen_conf['top_k']))
         outputs = self.vlm.generate(
             **model_inputs,
             max_length=self.gen_conf['max_length'],
             do_sample=True,
-            temperature=self.gen_conf['temperature'],
-            top_k=self.gen_conf['top_k'],
-            top_p=self.gen_conf['top_p'],
+            temperature=_temp,
+            top_k=_top_k,
+            top_p=_top_p,
         )
 
         outputs_trimmed = [
@@ -549,6 +594,10 @@ class AutoVLA(torch.nn.Module):
 
         outputs_trimmed = outputs_trimmed[0][:-1].cpu() # remove end token
         cot_results = self.processor.decode(outputs_trimmed)
+        # # prefill 的前缀属于输入、不在 generate 的输出里，补回来才是完整回复 mh 2026/07/25 测试用的
+        # if os.environ.get("AUTOVLA_FORCE_COT") and self.use_cot:
+        #     cot_results = FORCE_COT_PREFIX + cot_results
+
         # if 'Chain-of-Thought is not needed' not in self.processor.decode(outputs_trimmed):
         #     print(self.processor.decode(outputs_trimmed))
         #     print("has cot")
@@ -726,6 +775,17 @@ class AutoVLA(torch.nn.Module):
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True, add_vision_id=True
         )
+
+        # # --- mh 26-07-22: 强制开启 CoT（消融用）---
+        # # 发布的 RFT ckpt 在 navtest 上 100% 走 fast thinking：<think> 里恒为
+        # # "This is a straightforward scenario..."，一次真实推理都不做。
+        # # 想量化 reasoning 到底有没有用，就得强制它进 slow 分支。
+        # #
+        # # 做法：prefill assistant 回复的开头。SFT 时 CoT 样本的前缀就是下面这句
+        # # (dataset_utils/sft_dataset.py:188)，所以这是**完全在训练分布内**的干预，
+        # # 比改 system prompt 让它"必须推理"要干净得多。
+        # if os.environ.get("AUTOVLA_FORCE_COT") and self.use_cot:
+        #     text = text + FORCE_COT_PREFIX
 
         inputs = self.processor(
             text=[text],

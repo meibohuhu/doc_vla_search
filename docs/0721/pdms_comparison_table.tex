@@ -1,0 +1,66 @@
+% NAVSIM navtest PDMS comparison: ours vs. reported action-only baselines.
+% Standalone — compiles as-is.
+%
+% Compile:  pdflatex pdms_comparison_table.tex
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lcl}
+\toprule
+Setting & PDMS & Training data \\
+\midrule
+Ours, action-only @100k             & 58.97 & nuPlan 101k \\
+Ours, action-only @100k                 & \textbf{79.76} & nuPlan 101k \\
+AutoVLA, action-only @100k   & 71.79     & nuPlan 101k \\
+AutoVLA, action-only @185k   & 80.54  & nuPlan 166k + nuScenes 19k \\
+AutoVLA, released ckpt @185k   & \textbf{89.06}  & nuPlan 166k + nuScenes 19k \\
+\bottomrule
+\end{tabular}
+\caption{Testing Results on the NAVSIM (nuPlan): our SFT run compared
+against results reported in the AutoVLA paper.}
+\label{tab:pdms_comparison}
+\end{table}
+
+\section*{GRPO Reward with CoT Length Penalty}
+
+The reward is the PDM score of the rolled-out trajectory, reduced by a
+chain-of-thought length penalty that only applies when the model invokes
+slow, deliberate reasoning (i.e.\ when the completion text contains the
+\texttt{"complex scenario"} trigger phrase):
+\begin{align*}
+R = R_{\text{pdm}}(\tau, y) \;-\; w_{\text{cot}} \cdot
+    \sigma\big(k \, (\ell - c)\big) \cdot \mathbb{1}[\text{"complex scenario"} \in y]
+\end{align*}
+where $R_{\text{pdm}}$ is the PDM score of the predicted trajectory $\tau$ given
+completion $y$, $\ell = |y|$ is the character length of the generated
+completion, $c$ is the penalty center, $k$ is the sigmoid steepness
+coefficient, and $w_{\text{cot}}$ is the penalty weight
+($c = 400$, $k = 0.002$, $w_{\text{cot}} = 0.3$ by default). The sigmoid keeps
+the penalty near $0$ for short completions and saturates toward
+$w_{\text{cot}}$ as $\ell \gg c$, giving a smooth rather than a hard cutoff.
+
+The group-relative advantage is then computed over $G$ rollouts sampled per
+prompt:
+\begin{align*}
+A_i = \frac{R_i - \mathrm{mean}(\{R_j\}_{j=1}^{G})}{\mathrm{std}(\{R_j\}_{j=1}^{G}) + \epsilon}
+\end{align*}
+and the per-token GRPO loss combines the clipped/importance-weighted policy
+term with a $k_3$ KL penalty against the reference model:
+\begin{align*}
+\mathcal{L}
+  = -\, \mathbb{E}_t \Big[
+      \tfrac{\pi_\theta(y_t)}{\pi_{\theta_{\text{old}}}(y_t)} \, A_i
+      \;-\; \beta \Big( e^{\Delta_t} - \Delta_t - 1 \Big)
+    \Big], \qquad
+\Delta_t = \log \pi_{\text{ref}}(y_t) - \log \pi_\theta(y_t)
+\end{align*}
+
+\end{document}

@@ -21,8 +21,10 @@
 temp/*
 
 # local model / training outputs
-Qwen2.5-VL-3B-Instruct/
-runs/sft/
+Qwen2.5-VL-3B-Instruct
+runs
+tools/preprocessing/
+navsim/navsim/planning/script/
 
 # [mh 2026/07/22] dataset 是指向本机数据盘的 symlink（这台机器上是 /scratch/mh2803/vla），
 # 每台机器的路径都不一样。原本它被 git 跟踪（上游指向 /data/autovla_data），

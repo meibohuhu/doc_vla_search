@@ -1,0 +1,32 @@
+% AutoVLA dataset overview table (English) — standalone, compiles as-is.
+% Source: docs/0721/AutoVLA_summary.md, Section 6 ("数据集：共 4 个").
+%
+% Compile:  pdflatex autovla_datasets_table.tex
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{table}[t]
+\centering
+\addtocounter{table}{1}
+\begin{tabular}{clll}
+\toprule
+\# & Dataset & Role & CoT annotations \\
+\midrule
+1 & \textbf{nuPlan} (NAVSIM)     & Open-loop + RFT reward (PDMS) & $\sim$45.6k \\
+2 & \textbf{Waymo E2E} (WOD-E2E) & Open-loop, long-tail          & $\sim$7.2k \\
+3 & \textbf{nuScenes}            & Open-loop + QA                & Reused from DriveLM \\
+4 & \textbf{CARLA} (Bench2Drive) & Closed-loop                   & Reused from DriveLM \\
+\bottomrule
+\end{tabular}
+\caption{Datasets used by AutoVLA. Self-annotated chain-of-thought (CoT) data
+totals approximately 52.8k samples; the reasoning data has not been publicly
+released (repository README marks it as TBD).}
+\label{tab:autovla_datasets}
+\end{table}
+
+\end{document}

@@ -1,0 +1,61 @@
+name: qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev
+description: >
+  no-CoT SFT on nuPlan navtrain (~101k), ViT frozen + LLM full-param.
+  本机(brev, 8xA100-SXM4-80G) 专用：路径指向 /data，4 卡 DDP，global batch=32。
+  与 mh2803 那台的区别仅在 data 路径、accum(4卡→4)、wandb project 名。
+
+model:
+  use_cot: false                    # no-CoT baseline
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: true      # 原配方：ViT 冻结
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-nocot-sft
+  strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
+  # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
+  # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
+  # 训练静默失效（action top1 卡在 16%）。默认 True，这里显式写出以防误改。
+  fp32_master: true
+  # ⚠️ fp32 master 显存翻倍：500 样本实测 43GB -> 74.8GB/卡。101k + bs=2 极可能 OOM，
+  # 故 batch_size 2->1、accum 4->8，保持 global batch = 1 x 8 x 4 = 32 不变。
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null           # 用完整 navtrain
+  accumulate_grad_batches: 4        # global batch = 1 x 8 x 4 GPU = 32，对齐论文
+
+data:
+  train:
+    json_dataset_path: /data/autovla_data/nuplan/navtrain_nocot
+    sensor_data_path: null
+  val:
+    json_dataset_path: /data/autovla_data/nuplan/navtrain_nocot_val
+    sensor_data_path: null
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

@@ -143,6 +143,33 @@ if __name__ == "__main__":
     # gradients once per step -- especially when the interconnect is slow (e.g. no
     # NVLink / NCCL forced onto the loopback NET transport).
     strategy_name = config['training'].get('strategy', 'fsdp')
+
+######################################################### 修改这里 #########################################################
+    # [mh 2026/07/24] fp32 master weights —— 这是一个会静默毁掉训练的坑。
+    #
+    # AutoVLA.__init__ 用 torch_dtype=torch.bfloat16 加载模型，而 Lightning 2.2.1 里
+    # `32-true` / `bf16-mixed` 的 convert_module 都是 no-op（实测），不会把参数转回 fp32。
+    # 结果：无论 DDP 还是 FSDP，AdamW 都直接在 bf16 参数上做更新。
+    #
+    # bf16 只有 8 位尾数（相对精度 ~0.4%），而 lr=2e-5 的单步更新相对量级约 0.1%
+    # —— 低于分辨率，被反复舍入成 0。实测 200 步后：
+    #     bf16 master : 只有 26% 的参数发生过变化，累积位移是 fp32 的 1/6.7
+    #     fp32 master : 100% 的参数都在动
+    # 症状是"模板 token 几步学完、action token 卡在 loss 3.3 三个 epoch 不动、
+    # 训练集 top-1 只有 17%"——看起来像欠拟合/数据不够，其实是参数根本没在更新。
+    #
+    # 修法：显式把 master 转成 fp32；计算仍走 bf16（DDP 用 autocast，FSDP 用 param_dtype）。
+    # 代价：单卡多约 12GB fp32 参数 + 24GB 优化器状态，80G 卡放得下。
+    if config['training'].get('fp32_master', True):
+        model = model.float()
+        print(f"[precision] master weights -> fp32 (计算仍为 bf16)")
+
+    _pd = next(model.parameters()).dtype
+    print(f"[precision] strategy={strategy_name}  实际 param dtype={_pd}")
+    if _pd != torch.float32:
+        print("[precision] ⚠️  master 不是 fp32，小幅更新会被舍入，训练可能静默失效！")
+######################################################### 修改这里 #########################################################
+
     trainer_precision = "32-true"  # FSDP 内部自己处理低精度，Trainer 这层保持 32  /  FSDP handles low precision inside the strategy
     if strategy_name == 'ddp':
         from pytorch_lightning.strategies import DDPStrategy
@@ -156,10 +183,17 @@ if __name__ == "__main__":
             find_unused_parameters=True,
             gradient_as_bucket_view=True,
         )
-        # [mh 2026/07/22] 模型本来就是 bf16 加载的，这里对齐 FSDP 的 param_dtype
-        trainer_precision = "bf16-true"        # model is already loaded in bf16 (matches FSDP param_dtype)
+        # [mh 2026/07/24] 原为 "bf16-true"（参数/梯度/优化器状态全 bf16，无 fp32 master）
+        # -> 改 "bf16-mixed"：master 保持上面转好的 fp32，前向/反向走 autocast bf16。
+        # bf16-true 会把模型强制转回 bf16，等于抵消 fp32 master，务必不要用。
+        # fp32_master=True  -> "bf16-mixed": master 保持 fp32，前向反向 autocast bf16
+        # fp32_master=False -> "bf16-true" : 还原修复前的行为（参数/梯度/优化器全 bf16），
+        #                                    仅用于做精度对照实验，正式训练不要用。
+        trainer_precision = "bf16-mixed" if config['training'].get('fp32_master', True) else "bf16-true"
 ######################################################### 修改这里 #########################################################
     else:
+        # [mh 2026/07/24] 模型已在上面转成 fp32，MixedPrecision(param_dtype=bf16) 的语义即
+        # "master 保持原 dtype(fp32)、前向反向转 bf16" —— 正好是我们要的，无需额外改动。
         strategy = FSDPStrategy(
             auto_wrap_policy=wrap_policy,
             cpu_offload=False,

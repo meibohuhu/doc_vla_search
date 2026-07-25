@@ -1,0 +1,48 @@
+name: autovla-navtest-eval
+description: |
+  AutoVLA 在 NAVSIM navtest 上做 PDMS 评测时，AutoVLAAgent(config_path=...) 加载的配置。
+
+  为什么不直接用 config/training/qwen2.5-vl-3B-nuplan-grpo-cot.yaml：
+    * 那份是 GRPO 训练配置，含 sft_model_path / rl / data 等评测用不到的字段，
+      其中 sft_model_path 还是 "/path/to/your/sft_checkpoint.ckpt" 占位符，容易误导；
+    * 评测只需要 AutoVLA.__init__ 读的那几项（见下），单独一份更不容易搞错。
+
+  AutoVLA.__init__ 实际只读这些（models/autovla.py:479-494）：
+      model.pretrained_model_path / codebook_cache_path / use_cot
+      model.tokens.action_start_id / model.video.{min,max}_pixels
+      inference.sample.*
+  其余由 pdm_scoring 的 agent yaml 提供（trajectory_sampling / lora_conf / checkpoint_path 等）。
+
+model:
+  # ⚠️ issue #48：复现 89.11 必须【开 CoT】。发布的 ckpt 是带 CoT 训练的，
+  # use_cot=false 会让 get_prompt 走另一套 system prompt，与训练分布不符 -> 掉分。
+  use_cot: true
+
+  pretrained_model_path: /data/autovla_data/Qwen2.5-VL-3B-Instruct
+  codebook_cache_path: codebook_cache/agent_vocab.pkl   # 用仓库自带的，勿重新聚类
+
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+
+  tokens:
+    action_start_id: 151665      # Qwen2.5-VL-3B tokenizer 长度，2048 个 <action_i> 从此开始
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+
+  # 注意：训练路径用的是 sft_dataset.py 里硬编码的 28*28*128=100352，
+  # 这里的 109760 只在推理 get_prompt 生效。对 16:9 输入两者都落到 224x420，
+  # 目前一致；换分辨率/非 16:9 数据源时需同步修改两处。
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+inference:
+  batch_size: 1
+  num_workers: 1
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0
