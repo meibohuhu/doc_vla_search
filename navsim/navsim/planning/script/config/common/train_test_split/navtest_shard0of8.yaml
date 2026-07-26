@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: navtest_shard0of8
+
+data_split: test

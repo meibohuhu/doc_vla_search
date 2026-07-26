@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_loradry_shard0of1
+
+data_split: test

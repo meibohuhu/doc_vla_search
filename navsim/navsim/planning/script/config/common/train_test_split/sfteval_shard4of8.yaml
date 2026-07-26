@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sfteval_shard4of8
+
+data_split: test

@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_bf16full_shard4of12
+
+data_split: test
