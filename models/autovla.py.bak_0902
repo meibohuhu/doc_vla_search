@@ -11,8 +11,6 @@ from torch.distributed.fsdp import StateDictType
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 from models.action_tokenizer import ActionTokenizer
-from models.utils import rl_rewards
-from dataset_utils import prompt_spec
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from models.utils.score import PDM_Reward, TrajectorySampling, Trajectory
 
@@ -50,64 +48,11 @@ class GRPOAutoVLA(pl.LightningModule):
         # online reference model.
         if not inference:
             self.reference_model = AutoVLA(config, inference=True)
-            # ★ map_location='cpu'：不加的话张量按保存设备(cuda:0)加载，DDP 下【所有 rank
-            #   都堆到 cuda:0】→ 卡数一多就 OOM（6 卡 × 14GB = 84GB 爆）。载到 CPU 再由
-            #   Lightning 分发到各 rank 的卡。
-            state_dict = torch.load(config['model']['sft_model_path'], map_location='cpu')["state_dict"]
+            state_dict = torch.load(config['model']['sft_model_path'])["state_dict"]
             state_dict = {k.replace("autovla.", "").replace("drivevla.", ""): v for k, v in state_dict.items()}
             self.reference_model.load_state_dict(state_dict, strict=False)
-            self.reference_model.eval()
-            # 🔴 必须冻。DDP 会给所有 requires_grad=True 的参数挂 all-reduce hook，
-            #    而 reference 永远拿不到梯度 → "Expected to have finished reduction
-            #    in the prior iteration" 直接报错。FSDP 下这个问题被掩盖着。
-            for _p in self.reference_model.parameters():
-                _p.requires_grad = False
+            self.reference_model.eval()  
             print(f"Using online reference model from {config['model']['sft_model_path']}")
-
-        # ── 组采样:同一帧采 G 条 rollout ────────────────────────────────
-        # 🔴 原实现的"组"是靠 tools/run_rft.py 的 GroupSampler 让【每张卡拿同一帧】、
-        #    再 all_gather 凑出来的 —— 于是 G ≡ GPU 数（config devices:[0,1] → G=2，
-        #    两条样本算 std 噪声极大），而且换卡数就换了算法。
-        #    改成在**单卡内**采 G 条：G 与硬件解耦，各卡拿不同帧（run_rft.py 同步改回
-        #    标准 DistributedSampler），DDP 的梯度平均正好是"多帧多组"。
-        #    per_prompt_G = 1 时退回旧的跨卡分组，保留复现老实验的能力。
-        self.per_prompt_G = int(config['rl'].get('group', {}).get('per_prompt_G', 1))
-
-        # reward 各分项的权重（w_viol / w_say 要等 teacher 落地，见 flow §6.2/6.4/6.5）
-        _rw = config['rl'].get('reward', {})
-        self.w_pdm = float(_rw.get('w_pdm', 1.0))
-        self.w_fmt = float(_rw.get('w_fmt', 0.0))
-
-        # ── teacher（判决 + Δ 定价）——【默认关闭】────────────────────────
-        # 打开后 reward 变成
-        #     R = w_pdm·PDMS − w_fmt·1[off-format]
-        #         − w_viol · 1[触发]                     ← 可行性罚
-        #         − w_say  · clip(Δ,0,c) · 1[i ∈ chg]    ← 说法的标价
-        # ⚠️ w_say 是**进 reward 的标价，不是 loss**。唯一的损失仍然是 L_rl。
-        # 🔴 trigger 默认 nc_only:navtest 实测 69.5% 的触发是纯横向失效，
-        #    而沿学生路径改速度救不了它们（见 logs/0902/step0_gonogo.md）。
-        _tc = config['rl'].get('teacher', {})
-        self.teacher_enable = bool(_tc.get('enable', False))
-        self.w_viol = float(_tc.get('w_viol', 0.0))
-        self.w_say = float(_tc.get('w_say', 0.0))
-        self.clip_c = float(_tc.get('clip_c', 2.0))
-        # rollout 落盘：每步把 G 条 rollout(reasoning 全文 + 轨迹 + 各分项)写 JSONL，
-        # 每 rank 一个文件。供事后分析/调 reward-hacking/DiRL go-nogo（与 simlingo 的
-        # rollouts.jsonl 同构）。默认开；关掉设 rl.dump_rollouts: false。
-        self._dump_rollouts = bool(config['rl'].get('dump_rollouts', True)) and not inference
-        self._rollout_dir = config['rl'].get('rollout_dump_dir', 'runs/grpo_rollouts')
-        self._rollout_fh = None   # 懒打开（要等 global_rank 就绪）
-        self._teacher = None
-        self._teacher_cfg = _tc
-        if self.teacher_enable and not inference:
-            from models.utils.teacher import TeacherVerdict
-            self._teacher = TeacherVerdict(
-                Path(config['data']['train']['metric_cache_path']),
-                trigger=_tc.get('trigger', 'nc_only'),
-                dac_depth_min=float(_tc.get('dac_depth_min', 0.3)),
-                dac_time_max=float(_tc.get('dac_time_max', 3.0)))
-            print(f"[teacher] enabled  trigger={_tc.get('trigger','nc_only')}  "
-                  f"w_viol={self.w_viol}  w_say={self.w_say}  clip_c={self.clip_c}")
 
         # sample generation config
         sample_conf = config['training']['sample']
@@ -138,28 +83,13 @@ class GRPOAutoVLA(pl.LightningModule):
         
             # Compute the reward for the generated sample.
             reward = self.reward_function(sample)
-            if self.teacher_enable:
-                viol, delta, tinfo = self.teacher_terms(sample)
-                reward = reward - self.w_viol * viol - self.w_say * delta
-                self.log_dict({"t_fire": float(tinfo["fire"]) / max(len(viol), 1),
-                               "t_chg": float(tinfo["chg"]) / max(len(viol), 1),
-                               "t_delta": delta.mean()},
-                              sync_dist=True, on_step=True, on_epoch=False)
             reward_scale = self.cfg['rl']['reward'].get("scale", 1.0)
             reward = reward * reward_scale
-            # ⚠️ scale 对 advantage 无影响（组内标准化会把它约掉）；只影响 avg_train_reward
-            #    这条曲线的量纲。留着是为了和旧 run 的 wandb 图可比。
             
             # Normalize the rewards to compute the advantage.
-            if self.per_prompt_G > 1:
-                # 组 = 同一帧的 G 条 rollout，全在本卡内。各卡拿不同帧，
-                # DDP 的梯度平均 = 多帧多组，正是 GRPO 想要的。
-                advantage = (reward - reward.mean()) / (reward.std() + 1e-4)
-            else:
-                # legacy：组 = 跨卡（GroupSampler 让每张卡拿同一帧），G ≡ GPU 数。
-                # 只为复现旧实验保留，新实验请设 per_prompt_G > 1。
-                groupped_rewards = self.all_gather(reward)
-                advantage = (reward - groupped_rewards.mean()) / (groupped_rewards.std() + 1e-4)
+            groupped_rewards = self.all_gather(reward)
+            print(groupped_rewards)
+            advantage = (reward - groupped_rewards.mean()) / (groupped_rewards.std() + 1e-4)
 
         # Compute the per-token log probabilities.
         per_token_logps = self.get_per_token_logps(
@@ -204,51 +134,7 @@ class GRPOAutoVLA(pl.LightningModule):
 
         # record training reward
         self.training_buffer_record(reward.mean())
-
-        # 落盘 rollout（reasoning 全文 + 轨迹 + 分项 + advantage）
-        if self._dump_rollouts:
-            self._dump_step_rollouts(sample, reward, advantage)
         return loss
-
-    def _dump_step_rollouts(self, sample, reward, advantage):
-        """把本步 G 条 rollout 逐条写一行 JSON 到 rank 专属文件（append）。
-        字段：step / rank / token / g / text(reasoning 全文) / traj(pred waypoints) /
-              pdm / format_viol / consistency / reward(含 scale) / advantage。
-        任何异常都不能拖垮训练 → 整体 try/except。"""
-        try:
-            import json, os
-            if self._rollout_fh is None:
-                os.makedirs(self._rollout_dir, exist_ok=True)
-                path = os.path.join(self._rollout_dir, f"rollouts_rank{self.global_rank}.jsonl")
-                self._rollout_fh = open(path, "a", buffering=1)  # 行缓冲，断点也不丢
-                print(f"[rollout-dump] rank{self.global_rank} → {path}")
-            import numpy as np
-            texts = sample.get('completion_texts', [])
-            # 用 trajectory_poses（原始 (T,3) 数组，可序列化），不是 Trajectory 对象
-            poses = sample.get('trajectory_poses', [])
-            pdm = sample.get('_pdm'); fmt = sample.get('_fmt'); cons = sample.get('_cons')
-            tok = sample.get('token')
-            G = len(texts)
-            for g in range(G):
-                tj = poses[g] if g < len(poses) else None
-                if tj is not None:
-                    tj = np.asarray(tj.tolist() if hasattr(tj, 'tolist') else tj).tolist()
-                rec = {
-                    "step": int(self.global_step),
-                    "rank": int(self.global_rank),
-                    "token": tok if isinstance(tok, str) else (tok[g] if isinstance(tok, (list, tuple)) else str(tok)),
-                    "g": g,
-                    "text": texts[g],
-                    "traj": tj,
-                    "pdm": float(pdm[g]) if pdm is not None else None,
-                    "format_viol": float(fmt[g]) if fmt is not None else None,
-                    "consistency": float(cons[g]) if cons is not None else None,
-                    "reward": float(reward[g]),
-                    "advantage": float(advantage[g]),
-                }
-                self._rollout_fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        except Exception as e:
-            print(f"[rollout-dump] 跳过本步（不影响训练）：{e}")
     
     def training_buffer_record(self, step_reward):
         idx = self.sliding_idx.item()
@@ -278,165 +164,39 @@ class GRPOAutoVLA(pl.LightningModule):
         self.log("grad_norm", total_norm, sync_dist=True)
     
     def reward_function(self, sample):
-        """R = w_pdm·PDMS − w_fmt·1[off-format]
-
-        对 G 条 rollout 逐条算，返回 (G,) 的张量。
-
-        🔴 一致性(说法↔轨迹)**只记录、不进 reward**(`m_consistency`)。
-           把它写进 reward 等于**用手把 reasoning 和轨迹焊在一起** —— 而
-           "reasoning 变好 → 轨迹变好"正是本方法要【论证】的东西(paper §7)。
-           焊完再去测这条因果，测到的是自己刚加的那一项，不是方法的效果。
-           所以它留在这里当**观测量**:开跑前基线是多少、DiRL 训完涨没涨，
-           那才是 §7 想要的那个数。
-
-        ⚠️ 缺的两项是 teacher 那半:
-             − w_viol · 1[轨迹不可行]          需要反事实剖面 → 可行集 D（flow §6.2）
-             − w_say  · clip(Δ,0,c) · 1[i∈chg] 需要 splice + Δ 定价（flow §6.4/6.5）
-           它们落地前，这里就是一个"PDMS + 格式闸门 + 自洽"的普通 GRPO。
-
-        🔴 原实现的 cot_penalty 已删:它靠 `"complex scenario" in text` 触发，
-           而新 CoT 模板里这句套话不存在（实测 0/100222），一开跑就恒为 0、静默失效。
-           取代它的是 w_fmt —— 直接对着新模板判格式（<think>/<answer>/<PLAN> 齐不齐、
-           是否退化刷屏），见 models/utils/rl_rewards.py。
-        """
         device = next(self.parameters()).device
-        texts = sample['completion_texts']
-        trajs = sample['trajectories']
-        token = sample['token']
 
-        pdm, fmt, cons = [], [], []
-        for g, (text, traj) in enumerate(zip(texts, trajs)):
-            pdm.append(float(self.train_critic.rl_pdm_score(traj, token)))
-            # RL 一律走 reason_then_act（prompt 里就是这么要求的），所以 expect_think=True
-            fmt.append(1.0 if rl_rewards.format_violation(text, expect_think=True) else 0.0)
-            # ⚠️ 只记录，【不进 reward】—— 理由见下面 docstring
-            cons.append(rl_rewards.reward_consistency(text, sample['trajectory_poses'][g]))
+        # Add pdm score for nuplan scenario
+        reward = self.train_critic.rl_pdm_score(sample['trajectory'], sample['token'])
+        reward = torch.tensor(reward).to(device)
 
-        pdm = torch.tensor(pdm, device=device, dtype=torch.float32)
-        fmt = torch.tensor(fmt, device=device, dtype=torch.float32)
-        cons = torch.tensor(cons, device=device, dtype=torch.float32)
-        # 供 rollout dump 读取（不进 reward，只是把分项挂到 sample 上）
-        sample['_pdm'], sample['_fmt'], sample['_cons'] = pdm, fmt, cons
-        reward = self.w_pdm * pdm - self.w_fmt * fmt
+        # Add chain-of-thought penalty (if "need cot" is found in the generated text).
+        if self.use_cot:
+            cot_conf = self.cfg['rl']['cot_penalty']
+            cot_penalty_coef = cot_conf['coef']
+            center = cot_conf['center']
+            cot_penalty_weight = cot_conf['weight']
 
-        self.log_dict({
-            "train_reward": reward.mean(),
-            "r_pdm": pdm.mean(),
-            "r_format_viol": fmt.mean(),          # 越低越好；开跑初期看它有没有下降
-            "m_consistency": cons.mean(),         # ★ 指标，不是 reward。−1~1
-        }, sync_dist=True, prog_bar=False, on_step=True, on_epoch=False)
+            cot_penalties = torch.stack([
+                torch.sigmoid(torch.tensor(
+                    (len(text) - center) * cot_penalty_coef,
+                    device=device,
+                    dtype=reward.dtype
+                ))
+                if "complex scenario" in text.lower() else torch.tensor(
+                    0.0, device=device, dtype=reward.dtype
+                )
+                for text in sample['completion_texts']
+            ])
+            reward = reward - cot_penalty_weight * cot_penalties
+        else:
+            cot_penalties = torch.tensor(0.0, device=device, dtype=reward.dtype)
+
+        self.log("train_reward", reward, sync_dist=True, prog_bar=True, on_step=True, on_epoch=False)
+        self.log("cot_penalty", cot_penalties.mean(), sync_dist=True, prog_bar=True, on_step=True, on_epoch=False)
+
         return reward
-
-    # ────────────────────────────────────────────────────────────────────
-    # teacher:判决 + Δ 定价（flow §6.4–6.5）。默认关闭。
-    # ────────────────────────────────────────────────────────────────────
-
-    def _span_nll_pair(self, text_z, span_z, text_s, span_s, sample):
-        """一次前向同时算 nll(z) 和 nll(z*)，都只在各自的 [span] 上按 token 数归一。
-
-        ⚠️ 按 span 归一，不是整句 —— 实测 SPEED 词平均 1.95 个 token，而整条 completion
-           是 107 个。整句归一会把"改一个词"的信号稀释 ~55 倍，w_say 就没法定标了。
-
-        ⚠️ 合成一个 batch 前向（而不是调两次）:每次前向都要重跑视觉编码器，
-           分两次就白跑一遍。
-        """
-        tok = self.autovla.processor.tokenizer
-        dev = sample["input_ids"].device
-        pl = sample["prompt_length"]
-        prompt_ids = sample["input_ids"][0, :pl]
-
-        seqs, masks = [], []
-        for text, (a, b) in ((text_z, span_z), (text_s, span_s)):
-            enc = tok(text, return_offsets_mapping=True, add_special_tokens=False)
-            ids = torch.tensor(enc["input_ids"], device=dev)
-            m = torch.tensor([1.0 if (o[0] < b and o[1] > a) else 0.0
-                              for o in enc["offset_mapping"]], device=dev)
-            if float(m.sum()) == 0:
-                return None
-            seqs.append(torch.cat([prompt_ids, ids]))
-            masks.append(m)
-
-        L = max(len(x) for x in seqs)
-        pad = tok.pad_token_id if tok.pad_token_id is not None else 0
-        inp = torch.full((2, L), pad, dtype=seqs[0].dtype, device=dev)
-        att = torch.zeros((2, L), dtype=torch.long, device=dev)
-        for i, x in enumerate(seqs):
-            inp[i, :len(x)] = x
-            att[i, :len(x)] = 1
-
-        def _nll(rows):
-            pv = sample["pixel_values_videos_1"].repeat(len(rows), 1)
-            gt = sample["video_grid_thw_1"].repeat(len(rows), 1)
-            lp = self.get_per_token_logps(self.autovla.vlm, inp[rows], att[rows], pv, gt)
-            res = []
-            for j, i in enumerate(rows):
-                comp = lp[j, pl - 1:]
-                n = min(len(comp), len(masks[i]))
-                res.append(float(-(comp[:n] * masks[i][:n]).sum() / masks[i][:n].sum()))
-            return res
-
-        try:
-            out = _nll([0, 1])                      # 一次前向:省一遍视觉编码
-        except torch.cuda.OutOfMemoryError:
-            # 峰值在视觉编码器上。显存紧时退回两次单序列 —— 慢一点，但不会崩掉训练。
-            torch.cuda.empty_cache()
-            out = _nll([0]) + _nll([1])
-        return out[0], out[1]
-
-    def teacher_terms(self, sample):
-        """→ (viol, delta, info)。viol/delta 是 (G,) 张量;关闭时全 0。
-
-        delta 只在 `chg`（触发 ∧ 说法也不在 D 里 ∧ 能改）上非零，其余一律 0 = 弃权。
-        """
-        device = next(self.parameters()).device
-        G = len(sample["completion_texts"])
-        viol = torch.zeros(G, device=device)
-        delta = torch.zeros(G, device=device)
-        info = {"fire": 0, "chg": 0, "abstain": 0}
-        if self._teacher is None:
-            return viol, delta, info
-
-        from models.utils.teacher import decision_span
-        for g, text in enumerate(sample["completion_texts"]):
-            try:
-                v = self._teacher.judge(sample["token"], sample["trajectory_poses"][g],
-                                        sample["v0"], text)
-            except Exception:
-                continue
-            if v["fire"]:
-                viol[g] = 1.0
-                info["fire"] += 1
-            if v["target"] is None:
-                info["abstain"] += int(v["fire"])
-                continue
-            # ⚠️ span 取【整个决策从句】("I should …: <PLAN>…</PLAN>")，不是 tag 里那个词 ——
-            #    splice 同时改了散文动词和 tag，只量一处会漏掉另一处。
-            sp = decision_span(text)
-            sp_star = decision_span(v["z_star"])
-            if sp is None or sp_star is None:
-                continue
-            try:
-                pair = self._span_nll_pair(text, (sp[0], sp[1]),
-                                           v["z_star"], (sp_star[0], sp_star[1]), sample)
-            except Exception as e:
-                # 🔴 不要静默吞。踩过的坑:异常被 continue 掉之后 chg 恒为 0，
-                #    训练照跑，而 Δ 定价整条通路其实从没生效过。
-                if not getattr(self, "_span_nll_warned", False):
-                    self._span_nll_warned = True
-                    print(f"[teacher] Δ 定价失败（后续不再重复报）: {type(e).__name__}: {e}",
-                          flush=True)
-                info["delta_error"] = info.get("delta_error", 0) + 1
-                continue
-            if pair is None:
-                continue
-            nll_z, nll_s = pair
-            if not (np.isfinite(nll_z) and np.isfinite(nll_s)):
-                continue
-            # Δ > 0 表示 teacher 的说法比学生自己的说法【更不像】—— 这才是要付的代价。
-            delta[g] = max(0.0, nll_s - nll_z)
-            info["chg"] += 1
-        return viol, delta.clamp(0.0, self.clip_c), info
-
+    
     def get_per_token_logps(self, model, input_ids, attention_mask, pixel_values_videos, video_grid_thw):
         # Get the per-token log probabilities for the completions for the model and the reference model
         logits = model(input_ids, attention_mask=attention_mask, 
@@ -446,13 +206,9 @@ class GRPOAutoVLA(pl.LightningModule):
         logits = logits[:, :-1, :]  # (B, L-1, V), exclude the last logit: it corresponds to the next token pred
         input_ids = input_ids[:, 1:]  # (B, L-1), exclude the first input ID since we don't have logits for it
 
-        # 🔴 原来是 log_softmax(logits) 再 gather —— 那会把 (B, L-1, V) 整个
-        #    materialize 成 float32。V=152064，B=5/L=1200 时就是 3.5 GB，
-        #    纯粹为了取每个位置上一个数。
-        #    等价写法:gather 之后减 logsumexp，logsumexp 在 V 维上规约掉，不留中间张量。
-        #    数值上与 log_softmax 一致（logsumexp 本身就是稳定实现）。
-        sel = logits.gather(2, input_ids.unsqueeze(-1)).squeeze(-1)      # (B, L-1)
-        per_token_logps = sel - torch.logsumexp(logits, dim=-1)          # (B, L-1)
+        # Compute the log probabilities for the input tokens. Use a loop to reduce memory peak.
+        log_probs = torch.log_softmax(logits, dim=-1)  # (B, L-1, V)
+        per_token_logps = log_probs.gather(2, input_ids.unsqueeze(-1)).squeeze(-1)  # (B, L-1)
         return per_token_logps
 
     def generate_sample(self, data, model, device):
@@ -461,19 +217,8 @@ class GRPOAutoVLA(pl.LightningModule):
         inputs = model.get_prompt(data['input_features'])
         model_inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
-        # 🔴 原来是 torch.manual_seed(device_index) —— 每步都把 RNG 重置成一个
-        #    【与步数无关】的常数，同一张卡跨步的采样噪声因此不独立。
-        torch.manual_seed((self.global_step * 8192 + self.global_rank) % (2 ** 31 - 1))
-
-        # 同一帧采 G 条：手动把 batch 铺开 G 份再一次性 generate。
-        # ⚠️ 不用 num_return_sequences —— HF 的 _expand_inputs_for_generation 对
-        #    Qwen 打平的 pixel_values_videos 做 repeat_interleave 会把 patch 顺序打乱。
-        #    .repeat(G, ...) 是【整块平铺】[v1v2v3 | v1v2v3 | …]，与 input_ids 里
-        #    每行 3 个 video 占位符的消费顺序一致。
-        G = max(1, self.per_prompt_G)
-        if G > 1:
-            model_inputs = {k: v.repeat(G, *([1] * (v.dim() - 1)))
-                            for k, v in model_inputs.items()}
+        # set seed
+        torch.manual_seed(int(str(device).split(':')[-1]))
 
         # Generate completion
         with torch.no_grad():
@@ -490,19 +235,19 @@ class GRPOAutoVLA(pl.LightningModule):
             prompt_mask = model_inputs['attention_mask']
             completion_ids = prompt_completion_ids[:, prompt_length:]
 
-            # 逐条解出轨迹（G 条）
-            trajectories, trajectory_poses = [], []
-            for g in range(completion_ids.size(0)):
-                actions_tokens = completion_ids[g][completion_ids[g] >= self.action_start_id]
-                if len(actions_tokens) > self.trajectory_sampling.num_poses:
-                    actions_tokens = actions_tokens[:self.trajectory_sampling.num_poses]
-                elif len(actions_tokens) < self.trajectory_sampling.num_poses:
-                    actions_tokens = torch.cat([actions_tokens, torch.zeros(
-                        self.trajectory_sampling.num_poses - len(actions_tokens)).to(device)]).long()
-                poses = self.autovla.action_tokenizer.decode_token_ids_to_trajectory(
-                    actions_tokens.cpu())[0, 1:].cpu().numpy()
-                trajectory_poses.append(poses)                       # 供一致性 reward 用
-                trajectories.append(Trajectory(poses, self.trajectory_sampling))
+            # Extract action tokens and trajectory (! batch size = 1)
+            actions_tokens = completion_ids[0][completion_ids[0] >= self.action_start_id]
+
+            if len(actions_tokens) > self.trajectory_sampling.num_poses:
+                actions_tokens = actions_tokens[:self.trajectory_sampling.num_poses]
+            elif len(actions_tokens) < self.trajectory_sampling.num_poses:
+                actions_tokens = torch.cat([actions_tokens, torch.zeros(self.trajectory_sampling.num_poses - len(actions_tokens)).to(device)])
+                actions_tokens = actions_tokens.long()
+            else:
+                pass
+
+            trajectory = self.autovla.action_tokenizer.decode_token_ids_to_trajectory(actions_tokens.cpu())[0, 1:]
+            trajectory = Trajectory(trajectory.cpu().numpy(), self.trajectory_sampling)
 
             # Create completion mask
             is_eos = completion_ids == model.processor.tokenizer.eos_token_id
@@ -517,16 +262,7 @@ class GRPOAutoVLA(pl.LightningModule):
             completion_texts = model.processor.batch_decode(completion_ids)
 
             # Create outputs
-            # 单序列前向（teacher 的 Δ 定价）要用【未平铺】的一份 video 特征
-            _np = model_inputs['pixel_values_videos'].shape[0] // max(1, G)
-            _ng = model_inputs['video_grid_thw'].shape[0] // max(1, G)
-            _v = data['input_features'].get('vehicle_velocity', [0.0, 0.0])
-            _v0 = float(np.hypot(float(_v[0]), float(_v[1]))) if len(_v) >= 2 else float(_v[0])
-            outputs = {'trajectories': trajectories,
-                       'trajectory_poses': trajectory_poses,
-                       'v0': _v0,
-                       'pixel_values_videos_1': model_inputs['pixel_values_videos'][:_np],
-                       'video_grid_thw_1': model_inputs['video_grid_thw'][:_ng],
+            outputs = {'trajectory': trajectory, 
                        'token': data['token'], 
                        'completion_texts': completion_texts,
                        'prompt_length': prompt_length,
@@ -988,7 +724,7 @@ class AutoVLA(torch.nn.Module):
             camera_images[camera_type] = []
             for i in range(4):
                 img = images[camera_type][i]
-                if input_features.get('sensor_data_path'):
+                if input_features['sensor_data_path']:
                     camera_images[camera_type].append(
                         os.path.join(input_features['sensor_data_path'], img))
                 else:
@@ -1070,24 +806,68 @@ class AutoVLA(torch.nn.Module):
             },
             {
                 "type": "text",
-                # 🔴 与 SFT 共用同一份文案（dataset_utils/prompt_spec.py）。
-                #    以前这里是独立的一份、且已经漂到旧版 —— RL rollout 于是跑在
-                #    训练分布外。RL 一律走 reason_then_act:方法要改写的就是那句
-                #    <PLAN>，模型必须先把它说出来。
-                "text": prompt_spec.user_text(
-                    velocity, acceleration, instruction, self.use_cot,
-                    cot_mode="reason_then_act"),
+                "text": (
+                    f"The current velocity of the vehicle is {velocity:.3f} m/s, and the current acceleration is {acceleration:.3f} m/s². "
+                    f"The driving instruction is: {instruction}. Based on this information, plan the action trajectory for the autonomous vehicle over the next five seconds."
+                )
             },
         ]
 
-        messages = [
-            {"role": "system",
-             "content": [{"type": "text", "text": prompt_spec.system_text(self.use_cot)}]},
-            {"role": "user", "content": user_content},
-        ]
+        if self.use_cot:
+            messages = [
+                {   
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text":
+                            "You are an Advanced Driver Assistance and Full Self-Driving System. "
+                            "You will receive visual observations from the ego vehicle’s cameras and dynamic information about the vehicle’s current state. "
+                            "Your task is to predict the optimal driving action for the next five seconds.\n\n"
+                            "First, carefully analyze the surrounding environment by considering traffic lights, the movements of other vehicles and pedestrians, lane markings, and any other relevant factors.\n\n"
+                            "If necessary, use step-by-step reasoning (Chain-of-Thought) to arrive at the best driving action. Otherwise, you may directly predict the final driving action.\n\n"
+                            "Structure your reasoning as follows:\n"
+                            "1. **Scene Analysis**: Describe the traffic situation, including relevant environmental cues such as traffic lights, lane markings, and the behaviors of surrounding vehicles or pedestrians.\n"
+                            "2. **Identification of Critical Objects**: Identify two to three critical road users or obstacles, specifying their relative positions to the ego vehicle.\n"
+                            "3. **Prediction of Critical Object Behavior**: Predict the potential movements of the identified critical objects.\n"
+                            "4. **Ego Vehicle Intent Reasoning**: Based on the observed environment and current vehicle state, reason about the desired intent of the ego vehicle.\n"
+                            "5. **Final Action Decision**: Select one lateral action and one longitudinal action:\n"
+                            "- **Lateral actions** (choose exactly one): [move forward, turn left, change lane to left, turn right, change lane to right]\n"
+                            "- **Longitudinal actions** (choose exactly one): [stop, deceleration to zero, maintain constant speed, quick deceleration, deceleration, quick acceleration, acceleration]\n\n"
+                            "Present the final action clearly after your reasoning steps."
+                        }
+                    ]
+                },
+
+                {
+                    "role": "user",
+                    "content": user_content
+                },
+
+
+            ]
+        else:
+            messages = [
+                {   
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text":
+                            "You are an Advanced Driver Assistance and Full Self-Driving System. "
+                            "You will be provided with video observations from the ego vehicle’s surrounding cameras, along with the vehicle’s current dynamic states. "
+                            "Your task is to predict the most appropriate driving action for the next five seconds."
+                        }
+                    ]
+                },
+                {
+                    "role": "user",
+                    "content": user_content
+                },
+            ]
 
         image_inputs, video_inputs = process_vision_info(messages)
-
+        
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True, add_vision_id=True
         )
