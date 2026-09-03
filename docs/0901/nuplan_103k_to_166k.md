@@ -80,6 +80,43 @@ bash scripts/0721/run_navtest_metric_cache.sh trainval ray_distributed 8
 (ViT frozen + LLM full-param + `fp32_master: true`)。混训则加进列表(见
 `config/training/qwen2.5-vl-3B-mix-nuplan-nuscenes-nocot-sft.yaml` 的写法)。
 
+#### 🔴 训练时 JSON 和 sensor_blobs **两个都必须在**
+
+**JSON 里存的是图片路径,不是图片本身。** 预处理完【不能】删 sensor —— JSON 只是"目录",
+删了图训练一步都跑不了。
+
+单个样本 JSON 只有 5.6 KB,内容是 token / 速度 / 加速度 / 导航指令 / GT 轨迹 / 历史轨迹,
+外加 8 路相机的**绝对路径**:
+
+```json
+"front_camera_paths": [
+  "/scratch/mh2803/vla/nuplan/sensor_blobs/trainval/2021.10.06.14.31.13_veh-28_00223_00350/CAM_F0/9c5d987a44955903.jpg",
+  ... 共 4 帧
+]
+```
+
+| | 大小 | 作用 |
+|---|---|---|
+| `trainval_nocot_166k`(JSON) | **1.3 GB** | 索引 + 标注:轨迹真值、车速、指令、**指向图片的路径** |
+| `sensor_blobs/trainval` | **1.4 TB** | 实际 JPEG 像素(单张约 155 KB),ViT 的输入 |
+
+`SFTDataset` 读 JSON → 取 `front/front_left/front_right_camera_paths` → 用 `file://` 交给
+`process_vision_info` 去磁盘加载 JPEG → 喂 ViT。
+
+**衍生的三点:**
+
+1. **`sensor_data_path` 必须设 `null`** —— JSON 里是绝对路径。设了前缀的话 `SFTDataset`
+   会再 `os.path.join(sensor_data_path, camera_path)` 拼一次(`os.path.join` 遇绝对路径
+   会丢弃前缀,所以实际安全,但配置上应写 null 表明意图)。
+2. **换机器两样都得搬**,且 JSON 里的绝对路径是本机的 `/scratch/mh2803/...`,
+   要么路径保持一致,要么批量 `sed` 改写(和 metric cache 的 metadata 一个道理)。
+3. **实际只用 3 路相机**:JSON 存了 8 路(含 back/left/right),但 AutoVLA 的
+   `get_prompt()`(models/autovla.py)只用 front / front_left / front_right × 4 帧,
+   其余是预处理顺手存的,不影响训练。
+
+⚠️ **166k 没有单独切 val**。现有的 `navtrain_nocot_val`(2,000 个)是从 103k 划的,
+其 token 会和 166k 训练集重叠 → **验证集泄漏**。跑训练前须先从 166k 里划一份干净的 val。
+
 ---
 
 ## 3. 时间估算
@@ -100,7 +137,9 @@ bash scripts/0721/run_navtest_metric_cache.sh trainval ray_distributed 8
 
 ## 4. 前置与风险清单
 
-- **磁盘**:`/data` 现余 **5.3T**,装全量 trainval sensor(~2TB)+ 166k JSON(~几十 G)绰绰有余。
+- **磁盘**(2026/09/02 本机实测):全量 trainval sensor 解压后 **1.4 TB**(不是 2TB),
+  166k JSON 仅 **1.3 GB**。`/scratch` 跑完后仍余 1.3T。
+  ⚠️ 训练时这 1.4 TB **不能删**,见 Step 4。
 - **静默截断(最重要)**:流式下载会丢分片且不报错 → **必须落盘+`gzip -t`+`verify` 对账**,每步核对产出数量。
 - **只补差量做不到**:分片非 log 对齐,只能重下全 2TB(现有 446G 无法复用)。
 - **收益判断**:166k 相比 103k 多 ~60% 场景,但要多下 ~1.5T 净新数据。若不为严格复现 Table S1,
