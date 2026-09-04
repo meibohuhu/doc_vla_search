@@ -60,6 +60,7 @@ def apply(check_exists: bool = True):
     CHECK_EXISTS = check_exists
     _apply_camera_patch()
     _apply_vision_patches()
+    _apply_sensor_config_patch()
     _applied = True
     print(f"[fast_nocot_patch] 已启用：跳过图像解码/base64/vision 预处理"
           f"（文件存在性检查：{'开' if check_exists else '关'}）")
@@ -73,9 +74,12 @@ def revert():
     from navsim.common import dataclasses as nsdc
     from dataset_utils.preprocessing import nuplan_dataset as npd
 
+    from navsim.agents import vla_agent as va
+
     nsdc.Cameras.from_camera_dict = _orig["from_camera_dict"]
     npd.process_image_input = _orig["process_image_input"]
     npd.process_vision_info = _orig["process_vision_info"]
+    va.VlaAgent.get_sensor_config = _orig["get_sensor_config"]
     _applied = False
     print("[fast_nocot_patch] 已还原")
 
@@ -122,3 +126,39 @@ def _apply_vision_patches():
 
     npd.process_image_input = lambda image: ""          # 不做 cvtColor/imencode/base64
     npd.process_vision_info = lambda messages: (None, None)   # 不解码不缩放
+
+
+NUM_HISTORY_FRAMES = 4
+
+
+def _apply_sensor_config_patch():
+    """只加载 history+current 帧的相机，不碰未来 10 帧。
+
+    为什么必须这么做
+    ----------------
+    `Scene.from_scene_dict_list` 对 **全部 14 帧** 逐帧调 `Cameras.from_camera_dict`
+    (navsim/common/dataclasses.py:436)，而 `VlaAgent.get_sensor_config()` 把 8 个相机
+    都设成 `True`（bool => 所有帧都算命中）。于是每个场景要碰 14x8 = 112 张图。
+
+    但 `Scene.get_agent_input()` 只取 `range(num_history_frames)` 前 4 帧
+    (dataclasses.py:355)，未来 10 帧的图**从来不会进入模型**，纯属白读。
+
+    更要命的是：navtrain 的 445GB sensor 包（navtrain_current_* + navtrain_history_*）
+    **只含 history+current 帧**，未来帧的 jpg 根本不存在 =>
+    不做这个限制就会 FileNotFoundError。AutoVLA 作者用的是完整 trainval(2TB)，
+    所有帧都在，所以上游没暴露这个问题。
+
+    SensorConfig 的字段是 Union[bool, List[int]]，传帧号列表即可精确限制。
+    """
+    from navsim.agents import vla_agent as va
+    from navsim.common.dataclasses import SensorConfig
+
+    _orig["get_sensor_config"] = va.VlaAgent.get_sensor_config
+    hist = list(range(NUM_HISTORY_FRAMES))
+
+    def limited(self):
+        return SensorConfig(cam_f0=hist, cam_l0=hist, cam_l1=hist, cam_l2=hist,
+                            cam_r0=hist, cam_r1=hist, cam_r2=hist, cam_b0=hist,
+                            lidar_pc=False)
+
+    va.VlaAgent.get_sensor_config = limited

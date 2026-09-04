@@ -20,14 +20,26 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from waymo_open_dataset import dataset_pb2 as open_dataset
-from waymo_open_dataset.wdl_limited.camera.ops import py_camera_model_ops
+# py_camera_model_ops 是 3D->相机投影 op，本仓库从不使用；且其 .so 与 PyPI TF2.12
+# 存在 absl ABI 冲突(undefined symbol)。改为可选导入以绕过。 mh 2026-07-23
+try:
+    from waymo_open_dataset.wdl_limited.camera.ops import py_camera_model_ops
+except Exception:
+    py_camera_model_ops = None
 from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2
 from waymo_open_dataset.protos import end_to_end_driving_submission_pb2 as wod_e2ed_submission_pb2
 from dataset_utils.preprocessing.cot_prompts import get_cot_reasoning_prompt
 
-CAM_LIST = ['front', 'front_left', 'front_right', 
+CAM_LIST = ['front', 'front_left', 'front_right',
             'back', 'back_left', 'back_right', 'left', 'right']
-REQUIRED_CAM_LIST = CAM_LIST
+# 省磁盘补丁 (mh 2026-07-23): 只解了 4 路相机 (见 waymo_e2e_image_extraction.py)。
+# REQUIRED_CAM_LIST 必须与实际解出的相机一致，否则 _make_scene_entry 会因
+# left/right/back_left/back_right 缺失而对每个 scene return None，丢光所有数据。
+# 设 WAYMO_EXTRACT_ALL_CAMS=1 时恢复全 8 路。
+if os.environ.get("WAYMO_EXTRACT_ALL_CAMS"):
+    REQUIRED_CAM_LIST = CAM_LIST
+else:
+    REQUIRED_CAM_LIST = ['front', 'front_left', 'front_right', 'back']
 
 
 class WaymoE2ECoTAnnotationDataset(Dataset):
@@ -280,7 +292,7 @@ class WaymoE2ECoTAnnotationDataset(Dataset):
         inputs = {'text': text, 'image_inputs': image_inputs, 
                   'video_inputs': video_inputs, 'token': scene_token}
 
-        for side in CAM_LIST:
+        for side in REQUIRED_CAM_LIST:
             path_key = f"{side}_camera_paths"
             inputs[path_key] = images_path[path_key]
         inputs.update({
@@ -321,7 +333,7 @@ class WaymoE2ECoTAnnotationDataset(Dataset):
     
     def _make_scene_entry(self, sequence_name, sequence_dir, frame_sequence):
         scene_entry = {}
-        for cam in CAM_LIST:
+        for cam in REQUIRED_CAM_LIST:
             cam_folder = os.path.join(sequence_dir, cam)
             paths = []
             for f in frame_sequence:
@@ -534,7 +546,7 @@ class DataCollator:
         batch["preference_scores"] = [f["preference_scores"] for f in features]
         batch["preference_trajectories"] = [f["preference_trajectories"] for f in features]
 
-        for side in CAM_LIST:
+        for side in REQUIRED_CAM_LIST:
             path_key = f"{side}_camera_paths"
             batch[path_key] = [feature[path_key] for feature in features]
 

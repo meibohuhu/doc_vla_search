@@ -10,10 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from models.action_tokenizer import ActionTokenizer
 from navsim.agents.autovla_agent import AutoVLAAgent
-from dataset_utils import prompt_spec
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
-
-import random
 
 IGNORE_INDEX = -100
 
@@ -46,39 +43,6 @@ class SFTDataset(Dataset):
         self.action_tokenizer = ActionTokenizer(self.processor.tokenizer, model_config=model_config)
         # Flag to control whether to use CoT in training data
         self.using_cot = using_cot
-        # ── CoT 采样比例（simlingo 式）────────────────────────────────────
-        # 🔴 原版是【按数据有没有 CoT】决定走 think 分支，且两条分支各带一句
-        #    "This is a complex scenario…" / "This is a straightforward scenario…"。
-        #    后果记在 models/autovla.py:820 —— 发布的 RFT ckpt 在 navtest 上
-        #    100% 走 fast thinking，<think> 里恒为 "straightforward"，一次真实推理都不做。
-        #
-        # 改成 simlingo 的做法（dataloader/dataset_driving.py:312 起）:
-        #    每条样本【随机】选模式，而且 **prompt 侧也区分**:
-        #      reason_then_act  prompt 要求先分析再给动作   answer: reasoning + <answer>
-        #      act_directly     prompt 只要动作             answer: 只有 <answer>
-        #    ⚠️ prompt 必须区分。只在 answer 侧随机、prompt 不变的话，模型无从判断
-        #       该走哪条，必然塌向便宜的那条——就是上面那个 fast-thinking 坑。
-        #
-        # 三种模式，比例对齐 simlingo（commentary_ratio=0.75，其中 in-prompt 18%）:
-        #   reason_then_act   0.75 × 0.82 = 61.5%   prompt 要求先说，target = reasoning + action
-        #   reasoning_given   0.75 × 0.18 = 13.5%   reasoning【给在 prompt 里】，target = 只有 action
-        #   act_directly                    25.0%   prompt 只要动作，target = 只有 action
-        #
-        # ⭐ reasoning_given 不是可有可无的一档。它教的是【给定 reasoning → 产出轨迹】
-        #    这条通路，强迫轨迹去条件于 reasoning 文本，而不是绕过它。
-        #    没有它，waypoint head 会直接绕开 reasoning（simlingo 上实测过:reasoning
-        #    退化成空/重复而轨迹照样好），那本项目要证明的
-        #    "improving reasoning benefits trajectory generation" 就无从谈起；
-        #    §7 的因果验证（同一帧喂不同 reasoning、看轨迹变不变）也会落在分布外。
-        #
-        # 参数（config 的 model: 段）:
-        #   use_cot: false                → 纯 action 训练。**与改动前逐字节一致**
-        #   use_cot: true
-        #     cot_ratio: 0.75             有 reasoning 参与的比例（其余为 act_directly）
-        #     cot_in_prompt_ratio: 0.18   上者之中，reasoning 给在 prompt 里的比例
-        #     cot_ratio: 1.0, cot_in_prompt_ratio: 0.0   → 全部 reason_then_act（消融）
-        self.cot_ratio = float(model_config.get('cot_ratio', 0.75))
-        self.cot_in_prompt_ratio = float(model_config.get('cot_in_prompt_ratio', 0.18))
         
         trajectory_sampling = TrajectorySampling(time_horizon=model_config['trajectory']['time_horizon'], 
                                                 interval_length=model_config['trajectory']['interval_length'])
@@ -185,29 +149,43 @@ class SFTDataset(Dataset):
                     )
                 }
             ]
-            # prompt 文案统一放在 dataset_utils/prompt_spec.py（RL 侧共用同一份）
-            system_content = [{"type": "text", "text": prompt_spec.system_text(False)}]
+            system_content = [
+                {
+                    "type": "text",
+                    "text": (
+                        "You are an Advanced Driver Assistance and Full Self-Driving System. "
+                        "You will be provided with video observations from the ego vehicle's surrounding cameras, along with the vehicle's current dynamic states. "
+                        "Your task is to predict the most appropriate driving action for the next five seconds."
+                    )
+                }
+            ]
 
             has_cot = False
-            cot_mode = 'act_directly'
         else:
-            system_content = [{"type": "text", "text": prompt_spec.system_text(True)}]
+            system_content = [
+                {
+                    "type": "text",
+                    "text": (
+                        "You are an Advanced Driver Assistance and Full Self-Driving System. "
+                        "You will receive visual observations from the ego vehicle's cameras and dynamic information about the vehicle's current state. "
+                        "Your task is to predict the optimal driving action for the next five seconds.\n\n"
+                        "First, carefully analyze the surrounding environment by considering traffic lights, the movements of other vehicles and pedestrians, lane markings, and any other relevant factors.\n\n"
+                        "If necessary, use step-by-step reasoning (Chain-of-Thought) to arrive at the best driving action. Otherwise, you may directly predict the final driving action.\n\n"
+                        "Present the final action clearly after your reasoning steps."
+                    )
+                }
+            ]
 
             # Otherwise, check dataset type and CoT availability
             if scene_data["dataset_name"] == "nuplan" or scene_data["dataset_name"] == "waymo" :
-                # simlingo 式:每条样本随机选模式，prompt 侧同步区分（见 __init__ 的说明）
-                _avail = bool(isinstance(gt_cot, str) and gt_cot)
-                _use = _avail and random.random() < self.cot_ratio
-                cot_mode = ("reasoning_given"
-                            if _use and random.random() < self.cot_in_prompt_ratio
-                            else "reason_then_act" if _use else "act_directly")
-                has_cot = (cot_mode == "reason_then_act")
-                if has_cot:
+                has_cot = False
+                if isinstance(gt_cot, str):
                     assistant_content = [
                         {
                             "type": "text",
                             "text": (
                                 "<think>\n"
+                                "This is a complex scenario requiring additional reasoning.\n"
                                 f"{gt_cot}\n"
                                 "</think>\n"
                                 "<answer>\n"
@@ -216,12 +194,15 @@ class SFTDataset(Dataset):
                             )
                         }
                     ]
+                    has_cot = True
                 else:
-                    # 直接给动作，【不写空的 <think>】——写了等于教模型"想一下但什么都不说"
                     assistant_content = [
                         {
                             "type": "text",
                             "text": (
+                                "<think>\n"
+                                "This is a straightforward scenario, and a direct decision can be made.\n"
+                                "</think>\n"
                                 "<answer>\n"
                                 "The final output action is: " + self.action_tokenizer(gt_action_idx[0]) + "\n"
                                 "</answer>"
@@ -230,7 +211,6 @@ class SFTDataset(Dataset):
                     ]
             elif scene_data['dataset_name'] == "nuscenes":
                 has_cot = False
-                cot_mode = "act_directly"
                 if len(gt_cot) == 5:  # If CoT is available
                     if gt_cot[4] == "STOP\n":
                         gt_cot[4] = "stop"
@@ -324,9 +304,10 @@ class SFTDataset(Dataset):
             },
             {
                 "type": "text",
-                "text": prompt_spec.user_text(
-                    velocity, acceleration, instruction, self.using_cot, cot_mode,
-                    gt_cot if isinstance(gt_cot, str) else ""),
+                "text": (
+                    f"The current velocity of the vehicle is {velocity:.3f} m/s, and the current acceleration is {acceleration:.3f} m/s². "
+                    f"The driving instruction is: {instruction}. Based on this information, plan the action trajectory for the autonomous vehicle over the next five seconds."
+                )
             },
         ]
 
@@ -349,26 +330,6 @@ class SFTDataset(Dataset):
             }
         ]
 
-
-        # ── 调试:PRINT_SFT_DEBUG=N 时，每个 dataloader worker 打印前 N 条样本 ──
-        # 用来肉眼确认三档采样、prompt 后缀、target 里到底喂了什么。
-        # 训练时 num_workers>0，每个 worker 各打 N 条，所以总量 = N x num_workers。
-        # ⚠️ 只打印，不改任何返回值；N 设小一点（1~3），否则 log 会被刷爆。
-        _dbg = int(os.environ.get("PRINT_SFT_DEBUG", "0"))
-        if _dbg and getattr(self, "_dbg_printed", 0) < _dbg:
-            self._dbg_printed = getattr(self, "_dbg_printed", 0) + 1
-            _w = torch.utils.data.get_worker_info()
-            print(
-                f"\n[SFT_DEBUG] worker={_w.id if _w else 0} "
-                f"#{self._dbg_printed}/{_dbg}  mode={cot_mode}  has_cot={has_cot}  "
-                f"token={scene_data.get('token')}\n"
-                f"  SYSTEM : {system_content[0]['text']}\n"
-                f"  USER   : {user_content[-1]['text']}\n"
-                f"  TARGET : {assistant_content[0]['text']}\n"
-                f"  ↑ TARGET 是 teacher forcing 的标签:reasoning 用的是 GT，"
-                f"不是模型自己生成的\n",
-                flush=True,
-            )
 
         # process the images and messages
         image_inputs, video_inputs = process_vision_info(messages)
