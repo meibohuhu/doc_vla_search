@@ -1,11 +1,12 @@
 name: qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze
-description: ablation - ViT unfrozen + LLM full-param (vs frozen-ViT baseline)
+description: AutoVLA no-CoT SFT on nuPlan navtrain (~103k), ViT unfrozen + LLM full-param
+########### Use in gcis-zxtics-rl unfreeze ViT, 2GPU, 100k
 
 # model
 model:
   use_cot: false                    # no-CoT baseline
   pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
-  train_vision_backbone: true       # ablation: unfreeze ViT
+  train_vision_backbone: true      # ablation: unfreeze ViT
   train_lm_backbone: true           # full-parameter LLM (no LoRA)
   codebook_cache_path: "codebook_cache/agent_vocab.pkl"
   trajectory:
@@ -22,29 +23,38 @@ model:
 
 # training
 training:
-  logger: wandb                     # 'csv' (default) or 'wandb'; CSV is always written either way
+  logger: wandb
   wandb_project: autovla-nocot-sft
-  strategy: ddp                     # model fits on one GPU; DDP avoids FSDP's heavy per-layer all-gather over slow loopback NCCL
-  batch_size: 2
+  strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
+  # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
+  # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
+  # 训练静默失效（action top1 卡在 16%）。默认 True，这里显式写出以防误改。
+  fp32_master: true
+  # ⚠️ fp32 master 显存翻倍：500 样本实测 43GB -> 74.8GB/卡。101k + bs=2 极可能 OOM，
+  # 故 batch_size 2->1、accum 4->8，保持 global batch = 1 x 8 x 4 = 32 不变。
+  batch_size: 1
   learning_rate: 2.0e-5
-  vision_learning_rate: 2.0e-6      # ViT 10x smaller than LLM (669M pretrained tower)
-  epochs: 5
+  epochs: 6
   num_workers: 8
   weight_decay: 0.01
   lr_warmup_step: 500
   lr_step_frequency: 2000
   lr_step_gamma: 0.98
-  train_sample_size: null           # use full navmini train split (346)
-  accumulate_grad_batches: 8        # global batch = 2 (bs) x 8 (accum) x 2 GPU = 32, matches paper (1x4x8)
+  train_sample_size: null           # 用完整 navtrain
+  accumulate_grad_batches: 16        # global batch = 1 x 8 x 4 GPU = 32，对齐论文
 
-# Camera paths in the preprocessed navmini JSONs are ABSOLUTE, so sensor_data_path
-# is null: SFTDataset uses the stored path as-is (see sft_dataset.py:99-110).
+# Camera paths in the preprocessed JSONs are ABSOLUTE (the dataset yaml uses an
+# absolute dataset_path), so sensor_data_path is null: SFTDataset uses the stored
+# path as-is (sft_dataset.py:99-110).
+#
+# val is carved out of navtrain, NOT navtest -- navtest is reserved for the final
+# PDMS benchmark, and selecting checkpoints on it would leak the test set.
 data:
   train:
-    json_dataset_path: ./dataset/nuplan/mini_nocot
+    json_dataset_path: /scratch/mh2803/vla/nuplan/navtrain_nocot
     sensor_data_path: null
   val:
-    json_dataset_path: ./dataset/nuplan/mini_nocot_val
+    json_dataset_path: /scratch/mh2803/vla/nuplan/navtrain_nocot_val
     sensor_data_path: null
 
 inference:

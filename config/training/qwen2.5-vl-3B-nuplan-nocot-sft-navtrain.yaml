@@ -1,6 +1,6 @@
 name: qwen2.5-vl-3B-nuplan-nocot-sft-navtrain
 description: AutoVLA no-CoT SFT on nuPlan navtrain (~103k), ViT frozen + LLM full-param
-
+########### Use in gcis-zxtics-rl freeze ViT, 2GPU, 100k
 # model
 model:
   use_cot: false                    # no-CoT baseline
@@ -24,20 +24,23 @@ model:
 training:
   logger: wandb
   wandb_project: autovla-nocot-sft
-  strategy: ddp                     # model fits on one GPU; avoids FSDP all-gather over slow loopback NCCL
-  batch_size: 2
+  strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
+  # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
+  # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
+  # 训练静默失效（action top1 卡在 16%）。默认 True，这里显式写出以防误改。
+  fp32_master: true
+  # ⚠️ fp32 master 显存翻倍：500 样本实测 43GB -> 74.8GB/卡。101k + bs=2 极可能 OOM，
+  # 故 batch_size 2->1、accum 4->8，保持 global batch = 1 x 8 x 4 = 32 不变。
+  batch_size: 1
   learning_rate: 2.0e-5
   epochs: 6
   num_workers: 8
   weight_decay: 0.01
-  # ~103k samples / global batch 32 = ~3.2k optimizer steps per epoch, so a 500-step
-  # warmup is ~15% of one epoch and the LR actually reaches 2e-5. (On navmini there
-  # were only ~54 steps total, so the LR never left warmup -- see docs/721.)
   lr_warmup_step: 500
   lr_step_frequency: 2000
   lr_step_gamma: 0.98
-  train_sample_size: null           # use the full navtrain split
-  accumulate_grad_batches: 8        # global batch = 2 x 8 x 2 GPU = 32, matches paper (1x4x8)
+  train_sample_size: null           # 用完整 navtrain
+  accumulate_grad_batches: 16        # global batch = 1 x 8 x 4 GPU = 32，对齐论文
 
 # Camera paths in the preprocessed JSONs are ABSOLUTE (the dataset yaml uses an
 # absolute dataset_path), so sensor_data_path is null: SFTDataset uses the stored
