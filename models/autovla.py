@@ -820,11 +820,40 @@ class SFTAutoVLA(pl.LightningModule):
                   f"params @ lr={vision_lr:g} | rest: "
                   f"{sum(p.numel() for p in other_params)/1e6:.0f}M @ lr={lr:g}")
 
-        optimizer = torch.optim.AdamW(
-            param_groups,
-            lr=lr,
-            weight_decay=float(self.cfg['training'].get('weight_decay', 0.0))
-        )
+######################################################### 修改这里 #########################################################
+        # [mh 2026/09/04] 优化器可选，用来把解冻 ViT 后的显存压进 80G 卡。
+        #
+        # 背景：3.8B 全参 + fp32 master 时静态显存 = 参数14 + 梯度14 + AdamW(m,v)28 = 56GB，
+        # 加激活/碎片实测峰值 84.6GB，塞不进 80G 卡。bs 已是 1、LLM 和 ViT 的
+        # gradient checkpointing 都已开，唯一还能砍的大头就是那 28GB 优化器状态。
+        #
+        # 本机 GPU0 实测（3.76B 可训练参数，真实 step 后量的）：
+        #   adamw    : 优化器状态 28.0 GB  -> 静态 56.0 GB
+        #   adamw8bit: 优化器状态  7.1 GB  -> 静态 35.1 GB   省 20.9 GB
+        #
+        # 'adamw'(默认) 保持原行为，老实验完全不受影响；换 8bit 才需在 config 里显式写。
+        #   adamw8bit    : m/v 量化到 8bit，省 21GB。LLM 微调的标准做法，实践中与 fp32
+        #                  几乎无差别，但【不是逐比特一致】。
+        #   pagedadamw32 : 状态仍是 fp32（数学完全一致），显存吃紧时自动分页到 CPU。
+        #                  要逐比特复现就用它，代价是分页时变慢。
+        opt_name = str(self.cfg['training'].get('optimizer', 'adamw')).lower()
+        wd = float(self.cfg['training'].get('weight_decay', 0.0))
+        if opt_name == 'adamw':
+            optimizer = torch.optim.AdamW(param_groups, lr=lr, weight_decay=wd)
+        else:
+            try:
+                import bitsandbytes as bnb
+            except ImportError as e:
+                raise ImportError(
+                    f"training.optimizer={opt_name} 需要 bitsandbytes：pip install bitsandbytes"
+                ) from e
+            cls = {'adamw8bit': bnb.optim.AdamW8bit,
+                   'pagedadamw32': bnb.optim.PagedAdamW32bit}.get(opt_name)
+            if cls is None:
+                raise ValueError(
+                    f"未知 training.optimizer={opt_name}；可选 adamw / adamw8bit / pagedadamw32")
+            optimizer = cls(param_groups, lr=lr, weight_decay=wd)
+        print(f"[optim] optimizer={opt_name}")
 ######################################################### 修改这里 #########################################################
         lr_warmpup_step = self.cfg['training']['lr_warmup_step']
         lr_step_freq = self.cfg['training']['lr_step_frequency']
