@@ -1,8 +1,8 @@
-name: qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev
+name: qwen2.5-vl-3B-nuplan-nocot-sft-mix166k-brev
 description: >
   no-CoT SFT on nuPlan navtrain (~101k), ViT frozen + LLM full-param.
-  本机(brev, 8xA100-SXM4-80G) 专用：路径指向 /data，4 卡 DDP，global batch=32。
-  与 mh2803 那台的区别仅在 data 路径、accum(4卡→4)、wandb project 名。
+  本机(brev, 8xA100-SXM4-80G) 专用：路径指向 /data，8 卡 DDP，global batch=32。
+  与 mh2803 那台的区别仅在 data 路径、accum(8卡→8)、wandb project 名。
 
 model:
   use_cot: false                    # no-CoT baseline
@@ -24,7 +24,7 @@ model:
 
 training:
   logger: wandb
-  wandb_project: autovla-nocot-sft
+  wandb_project: autovla-nocot-sft-mix166k
   strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
   # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
   # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
@@ -41,12 +41,16 @@ training:
   lr_step_frequency: 2000
   lr_step_gamma: 0.98
   train_sample_size: null           # 用完整 navtrain
-  accumulate_grad_batches: 4        # global batch = 1 x 8 x 4 GPU = 32，对齐论文
+  accumulate_grad_batches: 16       # 2卡 global batch = 1x16x2 = 32,与 CoT mix 对齐
 
 data:
   train:
-    json_dataset_path: /data/autovla_data/nuplan/navtrain_nocot
-    sensor_data_path: null
+    json_dataset_path:
+      - /data/autovla_data/nuplan/navtrain_nocot
+      - /data/autovla_data/nuplan/trainval_mix166k_active
+    sensor_data_path:
+      - null
+      - null
   val:
     json_dataset_path: /data/autovla_data/nuplan/navtrain_nocot_val
     sensor_data_path: null

@@ -1,4 +1,4 @@
-name: qwen2.5-vl-3B-nuplan-grpo
+name: qwen2.5-vl-3B-nuplan-grpo-cot-brev-lowlr-3gpu
 description: >
   GRPO on nuPlan/NAVSIM，CoT 基座 + LoRA。
   2026-09-02 重写:路径指向本机 /data，组改成【单帧 G 条 rollout】，
@@ -11,7 +11,7 @@ model:
   # ⚠️ 必须填 CoT-SFT 的 ckpt（config/training/qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev.yaml
   #    跑出来那份）。填 no-CoT 的 ckpt 会让 rollout 根本说不出 <PLAN>，
   #    format 罚全程拉满、consistency 恒 0。
-  sft_model_path: /path/to/cot_sft_checkpoint.ckpt
+  sft_model_path: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39_bf16_cot_103k/epoch=4-loss=0.4436.ckpt
   codebook_cache_path: "codebook_cache/agent_vocab.pkl"
   train_vision_backbone: false
   train_lm_backbone: true
@@ -63,14 +63,16 @@ training:
   #   自回归 —— 把 GRPO 里最贵的一步再放大一个量级。显存不是瓶颈（3B + 冻结 ref + LoRA）。
   #   见 flow §5.4 末节。
   strategy: ddp
-  batch_size: 1                # 每卡每步 1 帧；组由 per_prompt_G 决定，不是 batch
-  learning_rate: 0.00003
+  batch_size: 2                # 每卡每步 1 帧；组由 per_prompt_G 决定，不是 batch
+  logger: wandb
+  wandb_project: autovla-grpo-cot
+  learning_rate: 1.0e-5
   epochs: 1
   num_workers: 1
   # 6 卡。实测 3 卡 × G=5 = 14.7 s/步；G=5→4 生成成本 ×0.8 → ~11.8 s/步，
   # 6 卡 = 6 帧/步 → 50,000/6 = 8,333 步 ≈ 27 小时（6 rank 的 straggler 同步可能到 30–33h）。
   # ⚠️ 与 SFT 不能共用卡；本机 GPU0 已坏，CUDA 编号 0-6
-  devices: [0, 1, 2, 3, 4, 5]
+  devices: [0, 1, 2]
   sample:
     max_length: 2048
     temperature: 0.9
@@ -78,7 +80,9 @@ training:
     top_p: 1.0
 
 rl:
-  kl_beta: 0.04
+  kl_beta: 0.01
+  dump_rollouts: true
+  rollout_dump_dir: runs/grpo_rollouts/lowlr_3gpu
 
   group:
     # ★ 一帧采 G 条 rollout，组在【卡内】闭合，各卡拿不同帧。
@@ -111,7 +115,7 @@ rl:
   #    Δ = nll(z*) − nll(z)，只在 <PLAN> 的 SPEED 那个 span 上按 token 数归一 ——
   #    整句归一的话，改一个词的信号会被 ~60 个 token 稀释掉。
   teacher:
-    enable: false
+    enable: true
     # 🔴 trigger 默认 nc_only。navtest 600 帧实测（见 logs/0902/step0_gonogo.md）:
     #      NC=0 或 DAC=0（原始）                   触发 15.67%  chg 13.50%
     #      nc_only                                 触发  3.67%  chg  3.00%

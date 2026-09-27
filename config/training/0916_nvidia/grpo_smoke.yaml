@@ -1,0 +1,91 @@
+name: grpo_smoke
+description: 'GRPO on nuPlan/NAVSIM，CoT 基座 + LoRA。 2026-09-02 重写:路径指向本机 /data，组改成【单帧
+  G 条 rollout】， strategy 换 DDP，reward = PDMS + 格式闸门（一致性只记录不进 reward）。 背景与逐条理由见 docs/0806/vcrd_flow_autovla.md
+  §5.4。
+
+  '
+model:
+  use_cot: true
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  sft_model_path: /data/autovla_data/checkpoints/sft/2026-09-02_05-47-39/epoch=2-loss=0.4732.ckpt
+  codebook_cache_path: codebook_cache/agent_vocab.pkl
+  train_vision_backbone: false
+  train_lm_backbone: true
+  lora:
+    use: true
+    task_type: CAUSAL_LM
+    target_modules:
+    - q_proj
+    - v_proj
+    - k_proj
+    - o_proj
+    r: 8
+    alpha: 8
+    dropout: 0.1
+    bias: none
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id:
+    - 151644
+    - 77091
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+data:
+  train:
+    path: /data/autovla_data/nuplan/placeholder/test
+    scene_filter: ./navsim/navsim/planning/script/config/common/train_test_split/scene_filter/navtest.yaml
+    metric_cache_path: /data/autovla_data/nuplan/navtest_metric_cache
+    json_dataset_path: /tmp/claude-1001/-home-nvidia-workspace-doc-drive-search/17420216-aa90-4ed0-8d3d-44ff259ca122/scratchpad/smoke_data
+    sensor_data_path: null
+  val:
+    path: /data/autovla_data/nuplan/placeholder/test
+    scene_filter: ./navsim/navsim/planning/script/config/common/train_test_split/scene_filter/navtest.yaml
+    metric_cache_path: /data/autovla_data/nuplan/navtest_metric_cache
+    json_dataset_path: /tmp/claude-1001/-home-nvidia-workspace-doc-drive-search/17420216-aa90-4ed0-8d3d-44ff259ca122/scratchpad/smoke_data
+    sensor_data_path: null
+training:
+  strategy: ddp
+  batch_size: 1
+  learning_rate: 3.0e-05
+  epochs: 1
+  num_workers: 1
+  devices:
+  - 0
+  - 1
+  - 2
+  sample:
+    max_length: 2048
+    temperature: 0.9
+    top_k: 0.0
+    top_p: 1.0
+rl:
+  kl_beta: 0.04
+  group:
+    per_prompt_G: 5
+  reward:
+    w_pdm: 1.0
+    w_fmt: 1.0
+    sliding_window_size: 4
+    scale: 10
+  teacher:
+    enable: true
+    trigger: nc_or_deep_dac
+    dac_depth_min: 0.3
+    dac_time_max: 3.0
+    w_say: 0.2
+    clip_c: 1.0
+    w_viol: 1.0
+inference:
+  batch_size: 1
+  num_workers: 1
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0.0
+    top_p: 1.0

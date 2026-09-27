@@ -1,0 +1,74 @@
+name: qwen2.5-vl-3B-mix-nuplan103k-nuscenes-nocot-sft-vit-unfreeze-adamw8bit-brev
+description: >
+  no-CoT SFT 混训【nuPlan navtrain (101k) + nuScenes train (19k) ≈ 120k】，【ViT 解冻(全参) + optimizer=adamw8bit】 + LLM 全参。
+  = qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze-adamw8bit-brev（navtest PDMS 84.22 那版的模型/超参，逐项不变）
+  ⊕ qwen2.5-vl-3B-mix-nuplan-nuscenes-nocot-sft（data.train 加 nuScenes）。
+  val = nuPlan navtrain_val (2000) + nuScenes val (5569)，两边都要评，ckpt 不偏向单一数据集。
+  本机(brev, 8xA100-SXM4-80G)，按【4 卡】设：global batch = 1 x 8 x 4 = 32。
+
+# model —— 与 nocot-sft-vit-unfreeze-adamw8bit-brev 完全一致
+model:
+  use_cot: false                    # no-CoT
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: true       # ViT 解冻
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"   # nuPlan 建的 codebook，nuScenes round-trip 0.078m 也适用
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-mix-nuplan-nuscenes-sft
+  strategy: ddp
+  # fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。别关，否则 lr 更新被 bf16 舍入。
+  fp32_master: true
+  # 解冻 ViT 后 3.8B 全参单卡峰值 ~84.6G > 80G，8-bit AdamW 省 ~21G 优化器状态才塞得下
+  optimizer: adamw8bit
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null           # 用完整 120k
+  accumulate_grad_batches: 8        # 4卡: global batch = 1 x 8 x 4 = 32
+
+data:
+  # train 是两个路径的列表（SFTDataset 原生支持）；两边 JSON 都存绝对 camera 路径，sensor_data_path 都为 null。
+  #   ⚠️ 比例 101k:19k ≈ 5.3:1，nuScenes 仅占 ~16%，无上采样。
+  train:
+    json_dataset_path:
+      - /data/autovla_data/nuplan/navtrain_nocot
+      - /data/autovla_data/nuscenes/nuscenes_train
+    sensor_data_path:
+      - null
+      - null
+  # val 两边都放：ModelCheckpoint 按 val_loss 留 top-3，只用一边会偏向那边。
+  #   注意 val_loss 里 nuScenes 占 ~74%（5569 vs 2000）。navtest 仍留给最终 PDMS，不参与选 ckpt。
+  val:
+    json_dataset_path:
+      - /data/autovla_data/nuplan/navtrain_nocot_val
+      - /data/autovla_data/nuscenes/nuscenes_val
+    sensor_data_path:
+      - null
+      - null
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

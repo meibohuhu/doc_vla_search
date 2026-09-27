@@ -6,7 +6,7 @@
 #
 #   sft_model_path : runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt (best CoT SFT, PDMS 80.45)
 #   train          : navtrain50k_cot (5万) + navtrain_metric_cache (reward)
-#   config         : training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-lowlr-3gpu (lr=4e-6, devices=[0,1,2])
+#   config         : training/0916_nvidia/qwen2.5-vl-3B-nuplan-grpo-cot-brev-lowlr-3gpu (lr=4e-6, devices=[0,1,2])
 #
 #   tmux new -s grpo_lowlr
 #   bash scripts/0901/run_grpo_cot_lowlr_3gpu.sh
@@ -18,7 +18,7 @@ set -uo pipefail
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-lowlr-3gpu"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-grpo-cot-brev-lowlr-3gpu"
 cd "$REPO"
 
 # --- 3 卡：物理 GPU 1/2/3（0/4/5/6 常被 SFT/评测占），进程内映射为 0/1/2 ---

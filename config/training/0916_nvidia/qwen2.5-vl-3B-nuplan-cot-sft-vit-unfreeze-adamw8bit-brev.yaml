@@ -1,0 +1,76 @@
+name: qwen2.5-vl-3B-nuplan-cot-sft-vit-unfreeze-adamw8bit-brev
+description: >
+  CoT SFT on nuPlan navtrain (~101k)，【ViT 解冻(全参) + optimizer=adamw8bit】 + LLM 全参。
+  = qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev（CoT 三档采样、超参）
+    ⊕ qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze-adamw8bit-brev（解冻 ViT + 8-bit AdamW）。
+  reasoning 数据构建见 docs/0806/vcrd_flow_autovla.md，采样机制见 docs/0901/sft_cot_sampling.md。
+
+model:
+  use_cot: true                     # ← CoT
+  # ── CoT 采样（simlingo 式三档，见 docs/0901/sft_cot_sampling.md）──────────
+  #   reason_then_act  0.75 x 0.82 = 61.5%  prompt "Explain your reasoning first."
+  #                                          target <think>{cot}</think><answer>
+  #   reasoning_given  0.75 x 0.18 = 13.5%  reasoning 给在 prompt 里，target 只有 <answer>
+  #   act_directly                   25.0%  prompt "Answer directly."，target 只有 <answer>
+  # ⚠️ 三档必须共存（见 navtrain-brev 配置里的说明）。
+  cot_ratio: 0.75
+  cot_in_prompt_ratio: 0.0
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: true       # ★ 解冻 ViT（本配置的目的）
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-cot-sft-vitunfreeze
+  strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
+  # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
+  # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
+  # 训练静默失效（action top1 卡在 16%）。默认 True，这里显式写出以防误改。
+  fp32_master: true
+  optimizer: adamw8bit
+  # ⚠️ 解冻 ViT 后 3.8B 全参，fp32 master 显存翻倍，单卡峰值 ~84.6G > 80G。
+  #    8-bit AdamW 把优化器状态 28G->7G(省 ~21G)，配合 expandable_segments 才塞得下 80G。
+  #    CoT target 更长（reasoning p50=32 token）序列更长->显存更紧，故 batch_size=1，勿调大。
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null           # 用完整 navtrain
+  # ⚠️ global batch = batch_size x accum x GPU 数 = 1 x 8 x 4 = 32，与其它 SFT 严格一致。
+  #    换 GPU 数就必须同步改 accum；启动脚本会强制检查这一点。
+  accumulate_grad_batches: 8
+
+data:
+  train:
+    json_dataset_path: /data/autovla_data/nuplan/navtrain_cot
+    sensor_data_path: null
+  val:
+    # navtrain_cot_val = navtrain_nocot_val(2000，与 train 不重叠)灌进 reasoning 后的版本。
+    # 覆盖率 1977/2000 = 98.8%，缺的 23 条是 log 首尾凑不出 14 帧窗口，cot_output 保持原样。
+    json_dataset_path: /data/autovla_data/nuplan/navtrain_cot_val
+    sensor_data_path: null
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

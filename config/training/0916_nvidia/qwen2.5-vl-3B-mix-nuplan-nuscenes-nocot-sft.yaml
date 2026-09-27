@@ -1,0 +1,69 @@
+name: qwen2.5-vl-3B-mix-nuplan-nuscenes-nocot-sft
+description: >
+  no-CoT SFT 混训【nuPlan navtrain (101k) + nuScenes train (19k) = 120k】，ViT 冻结 + LLM 全参。
+  验证集【只用 nuScenes val (5569)】—— 因为最终关心 nuScenes 开环 L2/Collision，
+  用 nuScenes val 选 ckpt 才和评测口径一致。
+  本机(brev, 8xA100-SXM4-80G)，此 config 按【4 卡】设：global batch = 1 x 8 x 4 = 32。
+  与 qwen2.5-vl-3B-nuscenes-nocot-sft.yaml 的差异仅在 data.train（加了 nuPlan）+ wandb project。
+
+model:
+  use_cot: false                    # no-CoT baseline（与纯 nuScenes 基线可比）
+  pretrained_model_path: ./Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: false      # ViT 冻结
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"   # nuPlan 建的 codebook，nuScenes round-trip 0.078m 也适用
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-mix-nuplan-nuscenes-sft
+  strategy: ddp
+  # fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。别关，否则 lr 更新被 bf16 舍入。
+  fp32_master: true
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null           # 用完整 120k
+  accumulate_grad_batches: 8        # 4卡: global batch = 1 x 8 x 4 = 32，对齐论文
+
+data:
+  # ★ train 是【两个路径的列表】—— SFTDataset 原生支持（逐路径配 sensor_data_path）。
+  #   两个数据集的 JSON 都存【绝对 camera 路径】，故 sensor_data_path 都为 null。
+  #   顺序：nuPlan 在前、nuScenes 在后（仅影响拼接顺序，DataLoader shuffle 会打散）。
+  #   ⚠️ 比例 101k:19k ≈ 5.3:1，nuScenes 仅占 ~16%。若想让 nuScenes 权重更高，
+  #      需要上采样（要改代码，见混训 runbook / 或问 mh）。
+  train:
+    json_dataset_path:
+      - /data/autovla_data/nuplan/navtrain_nocot
+      - /data/autovla_data/nuscenes/nuscenes_train
+    sensor_data_path:
+      - null
+      - null
+  # ★ val 只用 nuScenes —— 和最终评测口径（nuScenes L2/Collision）一致
+  val:
+    json_dataset_path: /data/autovla_data/nuscenes/nuscenes_val
+    sensor_data_path: null
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

@@ -15,7 +15,7 @@ set -uo pipefail
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-3gpu"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-grpo-cot-brev-3gpu"
 cd "$REPO"
 
 # --- 6 卡：物理 GPU 1-6（GPU0 不用），进程内映射为 0-5 ---
