@@ -1,0 +1,35 @@
+==================================================================
+ GRPO (RFT) on CoT SFT   —— 3 卡 (物理 4/5/6), DDP, LoRA
+ config      : config/training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-3gpu.yaml
+ sft_model   : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=3-loss=0.4446.ckpt
+ train       : navtrain50k_cot (5万) + navtrain_metric_cache
+ reward      : PDMS (rl_pdm_score)
+ 
+ LOG         : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0901_nvidia/grpo_cot_3gpu_2026-09-03_04-38-36.log
+==================================================================
+Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.06s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.78it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.57it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.49it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  4.24it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  4.10it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+[rank: 0] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/3
+[rank: 1] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 2] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.68it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.93s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.68it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.46it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.08it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.08s/it]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.17it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.21it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.83it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.71it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.83it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.72it/s]
+Terminated
+exit=143  LOG=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0901_nvidia/grpo_cot_3gpu_2026-09-03_04-38-36.log

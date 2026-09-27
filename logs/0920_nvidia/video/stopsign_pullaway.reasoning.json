@@ -1,0 +1,76 @@
+{
+ "_source": "video_sources/stopsign_pullaway/meta.json 的 raw_ours / raw_base,即 run_clip_dump.sh 落盘的 dump/*.jsonl",
+ "_note": "改 think / plan 只改画面显示,不改模型真实输出,也不影响 PDMS 和轨迹。*_original 是抽出来时的原文,请勿修改 —— 脚本靠它提示哪些地方被改过。",
+ "frames": {
+  "f01515": {
+   "baseline": {
+    "think": "I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "A vehicle 19 meters in front of me is moving away. I should speed up",
+    "plan": "ACCELERATE,STRAIGHT",
+    "think_original": "A vehicle 19 meters in front of me is moving away. I should speed up",
+    "plan_original": "ACCELERATE,STRAIGHT"
+   }
+  },
+  "f01516": {
+   "baseline": {
+    "think": "The vehicle 23 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 23 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "A vehicle 21 meters in front of me is moving away. I should speed up",
+    "plan": "ACCELERATE,STRAIGHT",
+    "think_original": "A vehicle 21 meters in front of me is moving away. I should speed up",
+    "plan_original": "ACCELERATE,STRAIGHT"
+   }
+  },
+  "f01517": {
+   "baseline": {
+    "think": "The vehicle 29 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 29 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 30 meters ahead in my lane is moving at 5 m/s. Because the gap in front of me is opening up, I should speed up",
+    "plan": "ACCELERATE,STRAIGHT",
+    "think_original": "The vehicle 30 meters ahead in my lane is moving at 5 m/s. Because the gap in front of me is opening up, I should speed up",
+    "plan_original": "ACCELERATE,STRAIGHT"
+   }
+  },
+  "f01518": {
+   "baseline": {
+    "think": "I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 32 meters ahead in my lane is moving at 7 m/s. Because the gap in front of me is opening up, I should speed up",
+    "plan": "ACCELERATE,STRAIGHT",
+    "think_original": "The vehicle 32 meters ahead in my lane is moving at 7 m/s. Because the gap in front of me is opening up, I should speed up",
+    "plan_original": "ACCELERATE,STRAIGHT"
+   }
+  },
+  "f01519": {
+   "baseline": {
+    "think": "The vehicle 30 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 30 meters ahead in my lane is moving at 6 m/s. Because I need to stay behind it, I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "I should speed up",
+    "plan": "ACCELERATE,STRAIGHT",
+    "think_original": "I should speed up",
+    "plan_original": "ACCELERATE,STRAIGHT"
+   }
+  }
+ }
+}

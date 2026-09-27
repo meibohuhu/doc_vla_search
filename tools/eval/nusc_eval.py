@@ -52,6 +52,13 @@ def parse_args():
                         help="Number of samples to evaluate (default: all)")
     parser.add_argument("--verbose", action="store_true",
                         help="Print verbose output for each sample")
+    # --- 分片评测（多 job 并行）：第 shard_id 片处理 idx % num_shards == shard_id 的样本 ---
+    parser.add_argument("--num_shards", type=int, default=1,
+                        help="把 val 集切成几片并行（默认 1=不分片）")
+    parser.add_argument("--shard_id", type=int, default=0,
+                        help="本 job 跑第几片 [0, num_shards)")
+    parser.add_argument("--dump_raw", type=str, default=None,
+                        help="把原始累加和(obj_col/obj_box_col/L2/total)存到此 .pt，供多片合并")
     return parser.parse_args()
 
 
@@ -74,7 +81,22 @@ def main():
     model.autovla.vlm.resize_token_embeddings(len(processor.tokenizer))
     
     state_dict = torch.load(checkpoint_path, map_location=args.device)['state_dict']
-    model.autovla.load_state_dict(state_dict, strict=False)
+    # ⚠️ Lightning ckpt 的 key 带 "autovla." 前缀（如 autovla.vlm.visual...），
+    # 而这里 load 进的是 model.autovla（子模块，key 应为 vlm.visual...）。
+    # 不 strip 前缀 → strict=False 下【全部 key 静默对不上】→ 加载随机权重跑出垃圾指标。
+    # 对齐 NAVSIM AutoVLAAgent(autovla_agent.py:391) 的做法：先去掉 autovla. 前缀。
+    stripped = {k.replace("autovla.", "", 1): v for k, v in state_dict.items()}
+    missing, unexpected = model.autovla.load_state_dict(stripped, strict=False)
+    # 防静默失败：真正加载进去的 key 必须占绝大多数（ckpt 是全参，825 key）。
+    loaded = len(stripped) - len(unexpected)
+    print(f"[ckpt] loaded={loaded}/{len(stripped)}  missing={len(missing)}  unexpected={len(unexpected)}")
+    assert loaded > 0.9 * len(stripped), (
+        f"ckpt 加载异常：只匹配上 {loaded}/{len(stripped)} 个 key，"
+        f"极可能是 key 前缀不对（会静默跑垃圾分数）。unexpected 样例: {unexpected[:3]}"
+    )
+    # 断言 action token 的 embedding 确实被加载（这 2048 行是轨迹能力的关键）
+    assert not any("embed_tokens" in k or "lm_head" in k for k in unexpected), \
+        "embed_tokens/lm_head 没加载进去——action token 会是随机的"
 
     model.to(args.device)
     model.autovla.device = args.device  # Update the device attribute for predict()
@@ -87,11 +109,17 @@ def main():
     sample_num = len(train_dataset.scenes)
     if args.num_samples is not None:
         sample_num = min(args.num_samples, sample_num)
-    
-    print(f"Evaluating {sample_num} samples...")
+
+    # 分片：本 job 只处理 idx % num_shards == shard_id 的样本。
+    # 用取模而非连续切块，保证各片难度分布均匀（相邻样本常来自同一 scene）。
+    assert 0 <= args.shard_id < args.num_shards, \
+        f"shard_id={args.shard_id} 必须在 [0,{args.num_shards})"
+    indices = [i for i in range(sample_num) if i % args.num_shards == args.shard_id]
+    print(f"Evaluating {len(indices)} samples "
+          f"(shard {args.shard_id}/{args.num_shards} of {sample_num} total)...")
 
     # Evaluate each sample
-    for idx in tqdm(range(sample_num), desc="Processing samples"):
+    for idx in tqdm(indices, desc=f"Processing samples [shard {args.shard_id}/{args.num_shards}]"):
         # scenes is a list of tuples: (scene_path, sensor_data_path)
         scene_path, _ = train_dataset.scenes[idx]
         
@@ -161,9 +189,25 @@ def main():
             segmentation[:, [1, 2, 3, 4, 5, 6]]
         )
     
+    # 分片模式：把【原始累加和】存出去，供合并（不能存平均后的表——平均没法再合并）。
+    # PlanningMetric 的状态 obj_col/obj_box_col/L2 是逐 timestep 的求和，total 是样本计数。
+    if args.dump_raw is not None:
+        raw = {
+            "obj_col": planning_metrics.obj_col.detach().cpu(),
+            "obj_box_col": planning_metrics.obj_box_col.detach().cpu(),
+            "L2": planning_metrics.L2.detach().cpu(),
+            "total": planning_metrics.total.detach().cpu(),
+            "shard_id": args.shard_id,
+            "num_shards": args.num_shards,
+            "checkpoint": str(args.checkpoint),
+        }
+        Path(args.dump_raw).parent.mkdir(parents=True, exist_ok=True)
+        torch.save(raw, args.dump_raw)
+        print(f"[dump] 原始累加和已存: {args.dump_raw}  (total={int(planning_metrics.total)})")
+
     # Calculate and print overall statistics
     eval_result = planning_metrics.compute()
-    
+
     # Create table with STP3's definition (cumulative average)
     planning_tab_stp3 = PrettyTable()
     planning_tab_stp3.title = "STP3's Definition Planning Metrics (Cumulative Average)"

@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-数 nuPlan/OpenScene 各种 SceneFilter 配置下能切出多少个 scene。
+数 nuPlan/OpenScene 在各种 SceneFilter 配置下能切出多少个 scene。
 
 关键前提（已核实）：navsim 的 filter_scenes() 只读 log .pkl 元数据，
-sensor_blobs_path 在枚举 token 时完全不参与。
-=> 只要 7GB 的 metadata 就能把场景数定死，不需要任何 sensor 数据。
+sensor_blobs_path 在枚举 token 时完全不参与
+(navsim/common/dataloader.py:87-90)。
+=> 只要 metadata 就能把场景数定死，不需要任何 sensor 数据。
 
-逻辑逐行复刻 navsim/navsim/common/dataloader.py::filter_scenes，
-区别只是不保存 frame_list（省内存），用 set 统计 distinct token
-（与原实现的 dict[token] = frame_list 语义一致）。
+计数逻辑逐行复刻 navsim/navsim/common/dataloader.py::filter_scenes，
+区别只有两点：
+  1. 不保存 frame_list（省内存）
+  2. 单遍扫描 —— 每个 log pkl 只 load 一次，同时评估所有配置
+     （否则 14GB pickle 要扫 6 遍）
+用 set 统计 distinct token，与原实现 dict[token] = frame_list 语义一致。
 
 用法:
     python scripts/count_scenes.py --logs ./dataset/nuplan/navsim_logs/trainval
-    python scripts/count_scenes.py --logs ... --only navtrain   # 只跑校验那一项
 """
 import argparse
 import pickle
@@ -22,80 +25,77 @@ import yaml
 from tqdm import tqdm
 
 FILTER_DIR = Path("navsim/navsim/planning/script/config/common/train_test_split/scene_filter")
+NUM_HISTORY = 4
+NUM_FUTURE = 10
+NUM_FRAMES = NUM_HISTORY + NUM_FUTURE  # 14
 
 
-def count(log_files, num_history=4, num_future=10, frame_interval=None,
-          has_route=True, tokens=None, desc=""):
-    """复刻 filter_scenes 的计数；返回 distinct token 数。"""
-    num_frames = num_history + num_future
-    if frame_interval is None:
-        frame_interval = num_frames          # SceneFilter.__post_init__ 的默认行为
-    token_set = set(tokens) if tokens is not None else None
-
-    found = set()
-    for p in tqdm(log_files, desc=desc, leave=False):
-        frames = pickle.load(open(p, "rb"))
-        for i in range(0, len(frames), frame_interval):
-            fl = frames[i:i + num_frames]
-            if len(fl) < num_frames:
-                continue
-            center = fl[num_history - 1]
-            if has_route and len(center["roadblock_ids"]) == 0:
-                continue
-            tok = center["token"]
-            if token_set is not None and tok not in token_set:
-                continue
-            found.add(tok)
-    return len(found)
-
-
-def load_filter(name):
-    d = yaml.safe_load(open(FILTER_DIR / f"{name}.yaml"))
-    return d.get("log_names"), d.get("tokens"), d.get("frame_interval")
+def scan_log(frames, frame_interval):
+    """复刻 filter_scenes 对单个 log 的切片；yield 通过 has_route 的 center token。"""
+    for i in range(0, len(frames), frame_interval):
+        fl = frames[i:i + NUM_FRAMES]
+        if len(fl) < NUM_FRAMES:
+            continue
+        center = fl[NUM_HISTORY - 1]
+        if len(center["roadblock_ids"]) == 0:      # has_route=True
+            continue
+        yield center["token"]
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--logs", required=True, help="navsim_logs/<split> 目录")
-    ap.add_argument("--only", default=None, help="只跑某一项 (navtrain|default|fi4|fi1|navtrain_logs_fi4|navtrain_logs_fi1)")
     args = ap.parse_args()
 
     log_dir = Path(args.logs)
-    all_logs = sorted(log_dir.iterdir())
-    print(f"log 目录: {log_dir}   共 {len(all_logs)} 个 log\n")
+    all_logs = sorted(p for p in log_dir.iterdir() if p.suffix == ".pkl")
 
-    nt_logs, nt_tokens, nt_fi = load_filter("navtrain")
-    nt_log_files = [f for f in all_logs if f.name.replace(".pkl", "") in set(nt_logs)]
+    nt = yaml.safe_load(open(FILTER_DIR / "navtrain.yaml"))
+    nt_lognames = set(nt["log_names"])
+    nt_tokens = set(nt["tokens"])
+    nt_log_files = {p for p in all_logs if p.name.replace(".pkl", "") in nt_lognames}
 
-    # (key, 说明, log 子集, frame_interval, token 白名单)
-    cases = [
-        ("navtrain",
-         "navtrain.yaml 原样【校验：应 = 103,288】",
-         nt_log_files, nt_fi, nt_tokens),
-        ("default",
-         "默认 SceneFilter (frame_interval=14, 不重叠) over 全部 log",
-         all_logs, None, None),
-        ("fi4",
-         "frame_interval=4 over 全部 log",
-         all_logs, 4, None),
-        ("fi1",
-         "frame_interval=1 (全重叠) over 全部 log  ← 上界",
-         all_logs, 1, None),
-        ("navtrain_logs_fi4",
-         "frame_interval=4，但只用 navtrain 的 1192 个 log",
-         nt_log_files, 4, None),
-        ("navtrain_logs_fi1",
-         "frame_interval=1，但只用 navtrain 的 1192 个 log  ← 决定性：445GB 能不能到 166k",
-         nt_log_files, 1, None),
-    ]
+    print(f"log 目录 : {log_dir}")
+    print(f"总 log 数: {len(all_logs)}    其中属于 navtrain 的: {len(nt_log_files)}\n")
 
-    print(f"{'配置':<20} {'log数':>7} {'scene数':>12}   说明")
-    print("-" * 100)
-    for key, desc, logs, fi, toks in cases:
-        if args.only and args.only != key:
-            continue
-        n = count(logs, frame_interval=fi, tokens=toks, desc=key)
-        print(f"{key:<20} {len(logs):>7} {n:>12,}   {desc}")
+    # key -> (说明, 是否只用 navtrain 的 log, frame_interval, token 白名单)
+    CASES = {
+        "navtrain":          ("navtrain.yaml 原样【自校验：应 = 103,288】", True,  1,          nt_tokens),
+        "default_fi14":      ("默认 SceneFilter (fi=14, 不重叠), 全部 log", False, NUM_FRAMES, None),
+        "all_fi4":           ("fi=4, 全部 log",                            False, 4,          None),
+        "all_fi1":           ("fi=1 (全重叠), 全部 log  ← 上界",            False, 1,          None),
+        "ntlogs_fi4":        ("fi=4, 只用 navtrain 的 log",                 True,  4,          None),
+        "ntlogs_fi1":        ("fi=1, 只用 navtrain 的 log  ← 445GB 上界",   True,  1,          None),
+    }
+
+    found = {k: set() for k in CASES}
+
+    # ---- 单遍扫描：每个 pkl 只 load 一次 ----
+    for p in tqdm(all_logs, desc="扫描 log"):
+        frames = pickle.load(open(p, "rb"))
+        in_nt = p in nt_log_files
+        # 同一 frame_interval 只切一次，多个 case 共用
+        by_fi = {}
+        for key, (_, nt_only, fi, _) in CASES.items():
+            if nt_only and not in_nt:
+                continue
+            if fi not in by_fi:
+                by_fi[fi] = list(scan_log(frames, fi))
+        for key, (_, nt_only, fi, toks) in CASES.items():
+            if nt_only and not in_nt:
+                continue
+            s = found[key]
+            if toks is None:
+                s.update(by_fi[fi])
+            else:
+                s.update(t for t in by_fi[fi] if t in toks)
+
+    print(f"\n{'配置':<16} {'scene 数':>12}   说明")
+    print("-" * 78)
+    for key, (desc, *_ ) in CASES.items():
+        print(f"{key:<16} {len(found[key]):>12,}   {desc}")
+
+    print("\n参照: AutoVLA Table S1  nuPlan train = 166.3k / test = 12.1k")
 
 
 if __name__ == "__main__":

@@ -6,12 +6,12 @@ import argparse
 import functools
 from peft import get_peft_model, LoraConfig, TaskType
 
-from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning import seed_everything
 from pytorch_lightning import Trainer
-from pytorch_lightning.strategies import FSDPStrategy, DDPStrategy
+from pytorch_lightning.strategies import FSDPStrategy
 
 from torch.distributed.fsdp import MixedPrecision
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
@@ -88,29 +88,12 @@ if __name__ == "__main__":
     train_dataset = RFTDataset(config['data']['train'], config['model'])
     val_dataset = RFTDataset(config['data']['val'], config['model'])
 
-    # 🔴 组是怎么来的，决定用哪个 sampler:
-    #   per_prompt_G > 1（新）:一帧的 G 条 rollout 全在同一张卡上生成，组在卡内闭合
-    #        → 各卡应当拿【不同】帧，用标准 DistributedSampler，DDP 梯度平均 = 多帧多组。
-    #   per_prompt_G = 1（旧）:靠 GroupSampler 让每张卡拿【同一】帧、再 all_gather 凑组
-    #        → G 恒等于 GPU 数，换卡数就换了算法。只为复现旧实验保留。
-    #   ⚠️ per_prompt_G > 1 时**不要自己建 DistributedSampler** ——
-    #      DataLoader 是在 Lightning 起进程组【之前】构造的，
-    #      DistributedSampler 的构造函数会去问 world_size → "Default process group
-    #      has not been initialized"。（GroupSampler 能活是因为它自己写了回退。）
-    #      交给 Lightning:不传 sampler、只给 shuffle，它会在进程组就绪后注入
-    #      正确分片的 DistributedSampler。
-    _G = int(config.get('rl', {}).get('group', {}).get('per_prompt_G', 1))
-    _kw = ({"shuffle": True} if _G > 1
-           else {"sampler": GroupSampler(train_dataset, shuffle=True)})
-    print(f"[group] per_prompt_G={_G}  "
-          f"sampler={'lightning-injected DistributedSampler（各卡不同帧）' if _G > 1 else 'GroupSampler（各卡同一帧）'}")
-
     train_data = DataLoader(
         train_dataset,
         batch_size=config['training']['batch_size'],
         num_workers=config['training']['num_workers'],
+        sampler=GroupSampler(train_dataset, shuffle=True),
         collate_fn=train_dataset.collate_fn,
-        **_kw,
     )
 
     val_data = DataLoader(
@@ -161,57 +144,31 @@ if __name__ == "__main__":
         },
     )
 
-    # ── 并行策略 ────────────────────────────────────────────────────────
-    # 🔴 原来写死 FSDP FULL_SHARD。FSDP 在 RL 上比在 SFT 上更亏:
-    #    FULL_SHARD 每层前向都要 all-gather 参数，而 rollout 是【逐 token 自回归】——
-    #    2048 token × 每层一次 all-gather，把 GRPO 里最贵的那一步再放大一个量级。
-    #    显存也不是瓶颈:3B policy(bf16≈6G) + 冻结 reference(≈6G) + LoRA，80G 卡很宽裕。
-    #    ⚠️ 用 DDP 的前提是 reference model 的参数已冻（GRPOAutoVLA.__init__ 里做了），
-    #       否则 DDP 会给它挂 all-reduce hook 却永远等不到梯度 → 直接报错。
-    strategy_name = config['training'].get('strategy', 'fsdp').lower()
-    if strategy_name == 'ddp':
-        strategy = DDPStrategy(find_unused_parameters=False)
-    else:
-        strategy = FSDPStrategy(
-            auto_wrap_policy=wrap_policy,
-            cpu_offload=False,
-            mixed_precision=MixedPrecision(
-                param_dtype=torch.bfloat16,
-                reduce_dtype=torch.bfloat16,
-                buffer_dtype=torch.bfloat16,
-            ),
-            sharding_strategy='FULL_SHARD',
-            backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-            state_dict_type='full',
-        )
-    print(f"[parallel] strategy={strategy_name}")
-
     current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     save_dir = f"runs/grpo/{current_date}"
     
-    # logger：CSV + TensorBoard 保底；再按需加 wandb。
-    # 触发条件：config.training.logger == 'wandb' 或环境变量 WANDB_PROJECT 有值。
-    # wandb 出问题（没装/没登录）不能拖垮训练 → try/except 降级到本地 logger。
-    _loggers = [CSVLogger(save_dir="runs/"), TensorBoardLogger(save_dir="runs/")]
-    _wandb_proj = config['training'].get('wandb_project') or os.environ.get('WANDB_PROJECT')
-    if _wandb_proj and str(config['training'].get('logger', 'wandb')).lower() != 'none':
-        try:
-            _loggers.append(WandbLogger(
-                project=_wandb_proj,
-                name=f"grpo-{current_date}",
-                save_dir="runs/",
-            ))
-            print(f"[logger] wandb 已启用 project={_wandb_proj}")
-        except Exception as e:
-            print(f"[logger] wandb 启用失败，降级到 CSV/TB：{e}")
-
     trainer = Trainer(
         num_nodes=1,
         max_epochs=config['training']['epochs'],
         accelerator="gpu",
-        devices=config['training']['devices'],
+        devices=config['training']['devices'], 
         num_sanity_val_steps=0,
-        strategy=strategy,
+        strategy=FSDPStrategy(
+            auto_wrap_policy=wrap_policy,
+            cpu_offload=False,
+            # Mixed precision training
+            mixed_precision=MixedPrecision(
+                param_dtype=torch.bfloat16,
+                reduce_dtype=torch.bfloat16,
+                buffer_dtype=torch.bfloat16
+            ),
+            # sharding strategy
+            sharding_strategy='FULL_SHARD',
+            # prefetching backward computation
+            backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
+            # save state dict type
+            state_dict_type='full', # can be full or sharded
+        ),
         callbacks=[
             ModelCheckpoint(
                 monitor="avg_train_reward",
@@ -226,7 +183,7 @@ if __name__ == "__main__":
             ),
             LearningRateMonitor(logging_interval="step")
         ],
-        logger=_loggers,
+        logger=[CSVLogger(save_dir="runs/"), TensorBoardLogger(save_dir="runs/")],
         enable_model_summary=True,
         log_every_n_steps=1,
         gradient_clip_algorithm="value",

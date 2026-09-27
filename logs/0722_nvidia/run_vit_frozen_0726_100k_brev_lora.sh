@@ -15,8 +15,8 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev"
-TAG="navtrain_vit_frozen_0722_100k_gpu4567"
+CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev-frozenvit-lora"
+TAG="run_vit_frozen_0723_100k_brev_lora"
 
 cd "$REPO"
 
@@ -33,7 +33,7 @@ n_val=$(count_json "$VAL_DIR")
 [ -e "$REPO/Qwen2.5-VL-3B-Instruct" ] || { echo "ERROR: 找不到 Qwen2.5-VL-3B-Instruct"; exit 1; }
 
 # --- 4 GPUs ---
-export CUDA_VISIBLE_DEVICES=4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export TOKENIZERS_PARALLELISM=false
 
 # --- A100-SXM4 有 NVLink，保持 NCCL 默认（不要禁 P2P/SHM）---
@@ -42,7 +42,7 @@ export NUPLAN_MAPS_ROOT=/data/autovla_data/nuplan/maps
 export NUPLAN_MAP_VERSION=nuplan-maps-v1.0
 export OPENSCENE_DATA_ROOT=/data/autovla_data/nuplan
 export NAVSIM_DEVKIT_ROOT="$REPO/navsim"
-export WANDB_PROJECT=autovla-nocot-sft
+export WANDB_PROJECT=autovla-nocot-sft-fix
 
 STAMP=$(date +%Y-%m-%d_%H-%M-%S)
 LOG="$REPO/logs/0721/${TAG}_${STAMP}.log"
@@ -50,10 +50,10 @@ LOG="$REPO/logs/0721/${TAG}_${STAMP}.log"
 echo "=================================================================="
 echo " STEP 3/3 : $TAG  (ViT frozen, LLM full-param)"
 echo " config   : config/${CONFIG}.yaml"
-echo " GPUs     : 4,5,6,7 (DDP, NVLink)"
+echo " GPUs     : 0,1,2,3,4,5,6,7 (DDP, NVLink)"
 echo " train    : $n_train json"
 echo " val      : $n_val json"
-echo " global batch = 2 x 4 accum x 4 GPU = 32"
+echo " global batch = 1 x 4 accum x 8 GPU = 32"
 echo " LOG      : $LOG"
 echo "=================================================================="
 

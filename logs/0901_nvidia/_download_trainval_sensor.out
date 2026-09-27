@@ -1,0 +1,390 @@
+/dev/md127       19T   14T  5.3T  72% /data
+
+[1;32m[03:18:13] 下载全量 trainval camera: 200 分片, ~2TB, 并行 6[0m
+
+[1;32m[03:18:13] 单流实测 ~22MB/s → 预计 5–8h（视带宽）。可随时中断，重跑续传。[0m
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.14.32.33_veh-08_01072_01231/CAM_R1': Directory not empty
+  ✓ 分片 5
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.16.17.26_veh-28_01370_01439/CAM_R0': Directory not empty
+  ✓ 分片 0
+  ✓ 分片 1
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.11.54.15_veh-12_03371_03642/CAM_L1': Directory not empty
+  ✓ 分片 6
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.11.54.15_veh-12_03371_03642/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.31.12.54.56_veh-40_01536_01758/CAM_L2': Directory not empty
+  ✓ 分片 7
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.31.14.40.58_veh-40_01268_01618/CAM_L0': Directory not empty
+  ✓ 分片 2
+  ✓ 分片 4
+  ✓ 分片 3
+  ✓ 分片 9
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.06.21_veh-38_02197_03220/CAM_F0': Directory not empty
+  ✓ 分片 12
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.19.22_veh-35_00869_03454': Directory not empty
+  ✓ 分片 10
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.19.22_veh-35_00869_03454/CAM_R2': Directory not empty
+  ✓ 分片 14
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.23.23.48_veh-26_04648_06327/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.02.57.41_veh-50_01522_02088/CAM_B0': Directory not empty
+  ✓ 分片 8
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.01.18.26.05_veh-28_01211_01323/CAM_B0': Directory not empty
+  ✓ 分片 13
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.05.34.05_veh-50_00568_00631/CAM_R1': Directory not empty
+  ✓ 分片 11
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.07.10.04_veh-52_01442_01802/CAM_R0': Directory not empty
+  ✓ 分片 16
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.01.19.16.42_veh-28_02011_02410/CAM_R0': Directory not empty
+  ✓ 分片 18
+  ✓ 分片 15
+  ✓ 分片 23
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.14.54.32_veh-16_00636_00840/CAM_L2': Directory not empty
+  ✓ 分片 21
+  ✓ 分片 19
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.17.37.09_veh-12_03003_03121': Directory not empty
+  ✓ 分片 22
+  ✓ 分片 17
+  ✓ 分片 26
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.02.57.41_veh-50_00029_00134/CAM_L1': Directory not empty
+  ✓ 分片 28
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.18.33.41_veh-35_02521_03356/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.54.02_veh-45_01261_02086/CAM_L0': Directory not empty
+  ✓ 分片 20
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.54.02_veh-45_01261_02086/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.22.40.23_veh-38_00818_03032/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.16.52.00_veh-26_01043_03099/CAM_L1': Directory not empty
+  ✓ 分片 27
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.22.40.23_veh-38_00818_03032/CAM_R1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.16.52.00_veh-26_01043_03099/CAM_R1': Directory not empty
+  ✓ 分片 29
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.22.40.23_veh-38_00818_03032/CAM_B0': Directory not empty
+  ✓ 分片 25
+  ✓ 分片 24
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.01.22.41_veh-14_02003_02615/CAM_R2': Directory not empty
+  ✓ 分片 31
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_05455_05749/CAM_L0': Directory not empty
+  ✓ 分片 30
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.07.12.18_veh-50_00211_00304/CAM_L2': Directory not empty
+  ✓ 分片 34
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.16.32.09_veh-35_00574_00989/CAM_R0': Directory not empty
+  ✓ 分片 35
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.31.16.37.21_veh-40_00016_00099/CAM_L0': Directory not empty
+  ✓ 分片 32
+  ✓ 分片 33
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.14.45.12_veh-42_00831_01079/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.14.25.15_veh-26_04936_05073/CAM_L1': Directory not empty
+  ✓ 分片 37
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.21.56.29_veh-35_01603_02401/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.58.55_veh-35_01785_01883/CAM_R2': Directory not empty
+  ✓ 分片 39
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.21.56.29_veh-35_01603_02401/CAM_R1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_06339_07673/CAM_F0': Directory not empty
+  ✓ 分片 41
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_06339_07673/CAM_L2': Directory not empty
+  ✓ 分片 36
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.15.53.28_veh-38_02316_03434/CAM_B0': Directory not empty
+  ✓ 分片 38
+  ✓ 分片 40
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.18.23.38_veh-26_00069_00642/CAM_B0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.13.12.49_veh-39_00135_00467/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.14.06.20_veh-26_02505_02775/CAM_R2': Directory not empty
+  ✓ 分片 43
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.13.16.40_veh-28_00642_01267/CAM_B0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.11.12_veh-08_00083_00200/CAM_R1': Directory not empty
+  ✓ 分片 47
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.08.18.59.48_veh-12_01276_01459/CAM_R0': Directory not empty
+  ✓ 分片 45
+  ✓ 分片 42
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.59.12_veh-38_03292_04331/CAM_L1': Directory not empty
+  ✓ 分片 46
+  ✓ 分片 44
+  ✓ 分片 48
+  ✓ 分片 53
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.16.27.22_veh-26_00016_01515/CAM_R1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_00016_01757/CAM_L2': Directory not empty
+  ✓ 分片 52
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.15.02.08_veh-45_01348_01731/CAM_R1': Directory not empty
+  ✓ 分片 49
+  ✓ 分片 50
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.05.12.22.00.38_veh-35_00215_00995/CAM_L2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.05.12.19.36.12_veh-35_01305_01389': Directory not empty
+  ✓ 分片 58
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.23.23.48_veh-26_02228_04624/CAM_F0': Directory not empty
+  ✓ 分片 54
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.08.18.59.48_veh-12_02116_02247/CAM_L1': Directory not empty
+  ✓ 分片 51
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.00.51.05_veh-17_03264_05261/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.13.27.42_veh-35_04001_04236/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_00104_00944/CAM_F0': Directory not empty
+  ✓ 分片 59
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.17.06.37_veh-35_00258_00748/CAM_F0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.19.40.26_veh-12_02031_02228/CAM_R2': Directory not empty
+  ✓ 分片 56
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.17.06.37_veh-35_00258_00748/CAM_L1': Directory not empty
+  ✓ 分片 55
+  ✓ 分片 57
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.05.12.19.36.12_veh-35_01179_01278/CAM_R1': Directory not empty
+  ✓ 分片 61
+rm: rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.03.17_veh-12_02584_02970/CAM_R1'cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.03.17_veh-12_02584_02970/CAM_R1': Directory not empty: Directory not empty
+
+  ✓ 分片 64
+  ✓ 分片 60
+rm: rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.17.23.18_veh-38_00305_00597/CAM_R1'cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.17.23.18_veh-38_00305_00597/CAM_R1': Directory not empty: Directory not empty
+
+  ✓ 分片 63
+  ✓ 分片 62
+  ✓ 分片 65
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.43.12_veh-43_01023_01358/CAM_R0': Directory not empty
+  ✓ 分片 68
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.17.23.18_veh-38_00773_01140/CAM_R2': Directory not empty
+  ✓ 分片 70
+  ✓ 分片 66
+  ✓ 分片 71
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.18.33.41_veh-35_04446_04756/CAM_F0': Directory not empty
+  ✓ 分片 74
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.14.50.05_veh-28_00578_00896/CAM_B0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.16.32.09_veh-35_01781_02379/CAM_L0': Directory not empty
+  ✓ 分片 75
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.16.32.09_veh-35_01781_02379/CAM_L2': Directory not empty
+  ✓ 分片 73
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.14.32.33_veh-08_01262_01528/CAM_R2': Directory not empty
+  ✓ 分片 67
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.06.24.06_veh-50_01311_01409/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.49.56_veh-26_00833_03384/CAM_L2': Directory not empty
+cp: cannot stat 'openscene-v1.1/sensor_blobs/trainval/2021.10.06.18.52.07_veh-28_01474_01908': No such file or directory
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.49.56_veh-26_00833_03384/CAM_L2': Directory not empty
+rm: rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.06.31.40_veh-52_01316_01565/CAM_R1'cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.06.31.40_veh-52_01316_01565/CAM_R1': Directory not empty: Directory not empty
+
+  ✓ 分片 76
+  ✓ 分片 72
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.49.56_veh-26_00833_03384/CAM_L2': Directory not empty
+  ✓ 分片 77
+cp: cannot stat 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.18.13.35_veh-26_03130_03197': No such file or directory
+cp: cannot stat 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.43.31_veh-16_03607_04007': No such file or directory
+cp: cannot stat 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.17.17.01_veh-45_02314_02798': No such file or directory
+  ✓ 分片 78
+  ✓ 分片 69
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.14.25.15_veh-26_01236_01585/CAM_R1': Directory not empty
+  ✓ 分片 81
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.21.17.55_veh-26_04426_04488/CAM_L1': Directory not empty
+  ✓ 分片 79
+  ✓ 分片 82
+  ✓ 分片 80
+  ✓ 分片 86
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_02989_03385/CAM_R2': Directory not empty
+  ✓ 分片 84
+  ✓ 分片 87
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.19.22.11_veh-38_02466_02675': Directory not empty
+  ✓ 分片 88
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.16.48.45_veh-43_02070_02652/CAM_B0': Directory not empty
+  ✓ 分片 83
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.16.48.02_veh-12_00839_00980/CAM_L1': Directory not empty
+  ✓ 分片 85
+  ✓ 分片 89
+  ✓ 分片 91
+  ✓ 分片 92
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.31.16.37.21_veh-40_00277_00417/CAM_R2': Directory not empty
+  ✓ 分片 95
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval': Directory not empty
+  ✓ 分片 93
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.06.24.06_veh-50_00021_00383/CAM_L1': Directory not empty
+  ✓ 分片 90
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.16.54.19_veh-35_00016_00755/CAM_R0': Directory not empty
+  ✓ 分片 96
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.08.14.35.24_veh-26_02555_03004/CAM_B0': Directory not empty
+  ✓ 分片 94
+  ✓ 分片 98
+  ✓ 分片 99
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval': Directory not empty
+  ✓ 分片 101
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.00.24.14_veh-38_01165_01425/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.13.28.41_veh-12_01779_02059/CAM_L0': Directory not empty
+  ✓ 分片 97
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.13.28.41_veh-12_01779_02059/CAM_R2': Directory not empty
+  ✓ 分片 102
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_04543_05321/CAM_L0': Directory not empty
+  ✓ 分片 104
+  ✓ 分片 100
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.21.56.29_veh-35_00947_01581/CAM_L2': Directory not empty
+  ✓ 分片 105
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.54.02_veh-45_00511_00579/CAM_L2': Directory not empty
+  ✓ 分片 107
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.51.31_veh-35_01047_01415/CAM_L1': Directory not empty
+  ✓ 分片 109
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.00.24.14_veh-38_00367_01154/CAM_R1': Directory not empty
+  ✓ 分片 106
+  ✓ 分片 108
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.02.42.50_veh-35_00038_02629/CAM_R2': Directory not empty
+  ✓ 分片 112
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.43.31_veh-16_02216_02667/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.19.22.11_veh-38_03242_03907/CAM_L2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_01768_02782/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_02740_03036/CAM_R1': Directory not empty
+  ✓ 分片 103
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_01768_02782': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.58.55_veh-35_00193_01084/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_05048_05270/CAM_L1': Directory not empty
+  ✓ 分片 111
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_01768_02782/CAM_R2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.58.55_veh-35_00193_01084/CAM_R0': Directory not empty
+  ✓ 分片 114
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.05.34.05_veh-50_02309_02677/CAM_R2': Directory not empty
+  ✓ 分片 113
+  ✓ 分片 110
+  ✓ 分片 115
+  ✓ 分片 117
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.08.31.07_veh-50_01750_01948/CAM_L2': Directory not empty
+  ✓ 分片 120
+  ✓ 分片 122
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.01.22.41_veh-14_04315_07102/CAM_L0': Directory not empty
+  ✓ 分片 118
+  ✓ 分片 121
+cp: cannot create directory 'sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_01502_01610': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_04496_06203/CAM_R0': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_04496_06203/CAM_R2': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.07.16.23.22.27_veh-14_04496_06203/CAM_L1': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.08.24.13.12.55_veh-45_00507_00867': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.08.24.13.12.55_veh-45_00507_00867/CAM_L0': File exists
+cp: cannot create directory 'sensor_blobs/trainval/2021.08.24.13.12.55_veh-45_00507_00867/CAM_R0': File exists
+rm: rm: rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_05620_06003/CAM_L2'cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_05620_06003/CAM_L2'rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_05620_06003/CAM_L2': Directory not empty: Directory not emptycannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_05620_06003/CAM_L2'
+
+: Directory not empty: Directory not empty
+
+  ✓ 分片 126
+  ✓ 分片 125
+  ✓ 分片 123
+  ✓ 分片 116
+  ✓ 分片 119
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.50.36_veh-26_05326_05387/CAM_L2': Directory not empty
+  ✓ 分片 128
+  ✓ 分片 129
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.06.19.27.33_veh-28_00302_00794/CAM_B0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.14.06.20_veh-26_01563_02494/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.11.44.56_veh-35_01595_01804/CAM_R1': Directory not empty
+  ✓ 分片 132
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.14.06.20_veh-26_01563_02494/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_03898_05974/CAM_F0': Directory not empty
+  ✓ 分片 127
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.20.26.06_veh-35_03898_05974/CAM_L2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.06.14.31.13_veh-28_01388_01849/CAM_F0': Directory not empty
+  ✓ 分片 130
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.08.12.54.54_veh-26_02994_03970/CAM_R1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.44.32_veh-08_00016_00564/CAM_B0': Directory not empty
+  ✓ 分片 133
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.00.35_veh-35_00960_03649/CAM_R0': Directory not empty
+  ✓ 分片 131
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval': Directory not empty
+  ✓ 分片 124
+  ✓ 分片 135
+  ✓ 分片 134
+  ✓ 分片 139
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval': Directory not empty
+  ✓ 分片 138
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.07.13.53.57_veh-35_02489_03145/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.51.31_veh-35_01729_02626/CAM_F0': Directory not empty
+  ✓ 分片 140
+cp: cannot create directory 'sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_03162_03227': File exists
+  ✓ 分片 141
+  ✓ 分片 137
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.43.12_veh-43_01906_02722/CAM_B0': Directory not empty
+  ✓ 分片 142
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.14.50.36_veh-26_03595_03863/CAM_B0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.14.25.15_veh-26_03964_04278/CAM_L1': Directory not empty
+  ✓ 分片 143
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.14.25.15_veh-26_03964_04278/CAM_R0': Directory not empty
+  ✓ 分片 136
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.13.16.40_veh-28_01473_01612/CAM_R2': Directory not empty
+  ✓ 分片 145
+  ✓ 分片 144
+  ✓ 分片 146
+  ✓ 分片 150
+  ✓ 分片 148
+  ✓ 分片 152
+  ✓ 分片 149
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.17.31.36_veh-16_02795_04024/CAM_R0': Directory not empty
+  ✓ 分片 155
+  ✓ 分片 151
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.43.31_veh-16_00803_02194/CAM_L1': Directory not empty
+  ✓ 分片 157
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.06.21_veh-38_03733_04300/CAM_B0': Directory not empty
+  ✓ 分片 147
+  ✓ 分片 154
+  ✓ 分片 158
+  ✓ 分片 159
+  ✓ 分片 156
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.16.27.22_veh-26_02282_03814/CAM_F0': Directory not empty
+  ✓ 分片 162
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.01.22.41_veh-14_02626_04289/CAM_R0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.14.54.32_veh-16_01187_03336/CAM_L0': Directory not empty
+  ✓ 分片 160
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.01.18.26.05_veh-28_01689_01890/CAM_L1': Directory not empty
+  ✓ 分片 161
+  ✓ 分片 153
+  ✓ 分片 163
+  ✓ 分片 164
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.13.52.55_veh-39_00818_01335/CAM_F0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.18.43.12_veh-43_00125_00805/CAM_F0': Directory not empty
+  ✓ 分片 167
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.00.35_veh-35_00130_00949/CAM_R0': Directory not empty
+  ✓ 分片 168
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.01.15.32.11_veh-28_01178_01392/CAM_R0': Directory not empty
+  ✓ 分片 165
+  ✓ 分片 166
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.17.26.26_veh-38_04544_04920/CAM_R2': Directory not empty
+  ✓ 分片 169
+  ✓ 分片 171
+  ✓ 分片 170
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.19.40.26_veh-12_00279_01212/CAM_L0': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.19.22_veh-35_00255_00418/CAM_R1': Directory not empty
+  ✓ 分片 172
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.11.07.12.18_veh-50_00541_00832/CAM_R0': Directory not empty
+  ✓ 分片 173
+  ✓ 分片 174
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval': Directory not empty
+  ✓ 分片 176
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.12.39.51_veh-26_02729_02878/CAM_R2': Directory not empty
+  ✓ 分片 175
+  ✓ 分片 178
+  ✓ 分片 177
+  ✓ 分片 183
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.08.17.36.50_veh-26_05134_05378/CAM_R1': Directory not empty
+  ✓ 分片 182
+  ✓ 分片 179
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.16.18.06.21_veh-38_00016_00747/CAM_L2': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.06.17.08.46_veh-28_01298_01548/CAM_L2': Directory not empty
+  ✓ 分片 180
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.17.06.37_veh-35_00928_02567/CAM_L1': Directory not empty
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.09.15.12.32.43_veh-28_00015_00093/CAM_B0': Directory not empty
+  ✓ 分片 187
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.07.09.17.06.37_veh-35_00928_02567/CAM_R0': Directory not empty
+  ✓ 分片 184
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.20.00.35_veh-35_03660_04140/CAM_R1': Directory not empty
+  ✓ 分片 181
+  ✓ 分片 185
+  ✓ 分片 188
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.23.18.23.38_veh-26_00663_01217/CAM_B0': Directory not empty
+  ✓ 分片 190
+  ✓ 分片 192
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.14.32.33_veh-08_00521_01051/CAM_L2': Directory not empty
+  ✓ 分片 186
+  ✓ 分片 189
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.24.18.30.46_veh-08_02327_02583/CAM_B0': Directory not empty
+  ✓ 分片 193
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.10.05.04.03.05_veh-50_00058_00321/CAM_R2': Directory not empty
+  ✓ 分片 194
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.08.17.16.48.45_veh-43_02693_03062/CAM_F0': Directory not empty
+  ✓ 分片 195
+  ✓ 分片 197
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.09.11.54.15_veh-12_01705_01845/CAM_L2': Directory not empty
+  ✓ 分片 196
+  ✓ 分片 199
+rm: cannot remove 'openscene-v1.1/sensor_blobs/trainval/2021.06.14.11.44.56_veh-35_04178_05084/CAM_F0': Directory not empty
+  ✓ 分片 198
+  ✓ 分片 191
+
+[1;32m[05:11:45] 完成 200/200 分片[0m
+
+[1;32m[05:11:45] 完整性核对（全 1310 log 是否都有 sensor）[0m
+❌ 全量 trainval: 需要 1310 log(按 metadata), 实有 sensor 1309, 缺 1
+      缺: 2021.07.09.01.37.16_veh-26_05530_05595
+  注: 下满后应 = 1310。缺的多半是某分片静默失败 → 重跑 download 续传。
+  分片标记: 200/200

@@ -15,8 +15,8 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev-vit"
-TAG="navtrain_vit_frozen_0723_100k_gpu4567_fix"
+CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev-4gpu"
+TAG="navtrain_vit_frozen_0727_100k_brev_gpu4"
 
 cd "$REPO"
 
@@ -33,7 +33,7 @@ n_val=$(count_json "$VAL_DIR")
 [ -e "$REPO/Qwen2.5-VL-3B-Instruct" ] || { echo "ERROR: 找不到 Qwen2.5-VL-3B-Instruct"; exit 1; }
 
 # --- 4 GPUs ---
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 export TOKENIZERS_PARALLELISM=false
 
 # --- A100-SXM4 有 NVLink，保持 NCCL 默认（不要禁 P2P/SHM）---

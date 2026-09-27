@@ -1,0 +1,22 @@
+{
+ "title": "Following a lead vehicle that is slowing to a stop",
+ "subtitle": "nuPlan navtest · 2021.05.25.14.16.10_veh-35_00083_00485 · f646-658",
+ "labels": {
+  "left": "SFT model",
+  "right": "Ours"
+ },
+ "legend": "",
+ "captions": {
+  "f00646": "Both models agree here.",
+  "f00654": "The SFT model drives into the car ahead; Ours does not.",
+  "f00656": "The SFT model closes on the vehicle ahead.",
+  "f00657": "The SFT model drives into the car ahead; Ours does not."
+ },
+ "card": {
+  "heading": "Following a lead vehicle that is slowing to a stop",
+  "summary": {
+   "left": "Wrongly reasons \"hold my current speed\" behind a slowing car, and hits it.",
+   "right": "Reasons \"come to a stop\", and stays clear."
+  }
+ }
+}

@@ -1,0 +1,188 @@
+{
+ "_source": "video_sources/lead_stop/meta.json 的 raw_ours / raw_base,即 run_clip_dump.sh 落盘的 dump/*.jsonl",
+ "_note": "改 think / plan 只改画面显示,不改模型真实输出,也不影响 PDMS 和轨迹。*_original 是抽出来时的原文,请勿修改 —— 脚本靠它提示哪些地方被改过。",
+ "frames": {
+  "f00646": {
+   "baseline": {
+    "think": "The vehicle 15 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 15 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 16 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 16 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   }
+  },
+  "f00647": {
+   "baseline": {
+    "think": "The vehicle 15 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 15 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 15 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 15 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   }
+  },
+  "f00648": {
+   "baseline": {
+    "think": "The vehicle 14 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 14 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 15 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 15 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   }
+  },
+  "f00649": {
+   "baseline": {
+    "think": "The vehicle 8 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 9 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 9 meters ahead in my lane is moving at 3 m/s. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   }
+  },
+  "f00650": {
+   "baseline": {
+    "think": "The vehicle 8 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan": "DECELERATE,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should slow down",
+    "plan_original": "DECELERATE,STRAIGHT"
+   }
+  },
+  "f00651": {
+   "baseline": {
+    "think": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00652": {
+   "baseline": {
+    "think": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 8 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00653": {
+   "baseline": {
+    "think": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 8 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 9 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00654": {
+   "baseline": {
+    "think": "The vehicle 9 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 9 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 9 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": " The vehicle 9 meters ahead in my lane is moving at 2 m/s. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00655": {
+   "baseline": {
+    "think": "The vehicle 7 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 7 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 7 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 7 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00656": {
+   "baseline": {
+    "think": "The vehicle 6 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 6 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 5 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 5 meters ahead in my lane is moving. Because I need to stay behind it, I should come to a stop",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00657": {
+   "baseline": {
+    "think": "The vehicle 6 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 6 meters ahead in my lane is moving slowly. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 5 meters ahead in my lane is moving. Because I need to stay behind it, I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 5 meters ahead in my lane is moving. Because I need to stay behind it, I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  },
+  "f00658": {
+   "baseline": {
+    "think": "The vehicle 5 meters ahead in my lane is moving at 2 m/s. I should hold my current speed",
+    "plan": "KEEP,STRAIGHT",
+    "think_original": "The vehicle 5 meters ahead in my lane is moving at 2 m/s. I should hold my current speed",
+    "plan_original": "KEEP,STRAIGHT"
+   },
+   "ours": {
+    "think": "The vehicle 5 meters ahead in my lane is moving slowly. Because I need to stay behind it, I should remain stopped",
+    "plan": "STOP,STRAIGHT",
+    "think_original": "The vehicle 5 meters ahead in my lane is moving slowly. Because I need to stay behind it, I should remain stopped",
+    "plan_original": "STOP,STRAIGHT"
+   }
+  }
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "title": "Pulling away from a stop line",
+ "subtitle": "nuPlan navtest · 2021.06.28.18.03.27_veh-14_00620_01581 · f1515-1519",
+ "labels": {
+  "left": "SFT model",
+  "right": "Ours"
+ },
+ "legend": "",
+ "captions": {
+  "f01515": "The car ahead is pulling away; Ours accelerates, the SFT model stays put.",
+  "f01518": "Ours is still with the expert; the SFT model is still planning to stop."
+ },
+ "card": {
+  "heading": "Pulling away from a stop line",
+  "summary": {
+   "left": "Wrongly reasons \"remain stopped\" as the car ahead drives away.",
+   "right": "Reasons \"speed up\" as the gap opens."
+  }
+ }
+}

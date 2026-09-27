@@ -1,0 +1,28 @@
+  eval config use_cot=False (确保与 ckpt 类型一致:CoT ckpt→True, no-CoT ckpt→False)
+==================================================================
+ CoT SFT greedy 评测 (PDMS on navtest)
+ ckpt      : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-05_20-34-30/epoch=2-loss=0.6905.ckpt
+ eval cfg  : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/config/eval/0723/autovla-navtest-eval-nocot.yaml (use_cot=False)
+ 解码      : greedy (AUTOVLA_SAMPLE_TOP_K=1)
+ 分片      : 3 job → GPU [6] 各 3 个
+ 场景      : 1000 (seed=42)
+ 输出      : /data/autovla_data/nuplan/../eval/nuplan/cot_sft_greedy_eval/epoch_2_loss_0_6905
+==================================================================
+  shard 0: 334 tokens
+  shard 1: 333 tokens
+  shard 2: 333 tokens
+合计 1,000
+
+启动 3 个 job ...
+  job0 -> GPU 6
+  job1 -> GPU 6
+  job2 -> GPU 6
+已启动 3 个进程，等待全部完成 ...
+
+==================== 结果 ====================
+ckpt: epoch=2-loss=0.6905.ckpt   n=1000
+                PDMS      NC     DAC      EP     TTC       C     DDC
+   77.88   96.30   87.69   73.04   91.19  100.00   95.74
+
+参照: 发布 RFT ckpt 同批 1000 场景 PDMS=89.06 / 全量 12126 上 89.48
+合并 CSV: /data/autovla_data/nuplan/../eval/nuplan/cot_sft_greedy_eval/epoch_2_loss_0_6905/cotgreedy_merged.csv

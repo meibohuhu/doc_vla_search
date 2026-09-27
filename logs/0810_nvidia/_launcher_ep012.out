@@ -1,0 +1,97 @@
+==================================================================
+ 混训 run epoch0/1/2 分片评测  (nuScenes L2+Collision)
+ run      : runs/sft/2026-08-11_07-35-22
+ 每 epoch : 3 片；共 9 job；GPU: 0 1 2 3 (round-robin)
+ 输出目录 : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54
+==================================================================
+  job#0  epoch=0 shard=0 -> GPU0  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep0_shard0.pt)
+  job#1  epoch=0 shard=1 -> GPU1  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep0_shard1.pt)
+  job#2  epoch=0 shard=2 -> GPU2  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep0_shard2.pt)
+  job#3  epoch=1 shard=0 -> GPU3  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep1_shard0.pt)
+  job#4  epoch=1 shard=1 -> GPU0  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep1_shard1.pt)
+  job#5  epoch=1 shard=2 -> GPU1  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep1_shard2.pt)
+  job#6  epoch=2 shard=0 -> GPU2  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep2_shard0.pt)
+  job#7  epoch=2 shard=1 -> GPU3  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep2_shard1.pt)
+  job#8  epoch=2 shard=2 -> GPU0  (/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/raw_ep2_shard2.pt)
+
+已启动 9 个 job，PID: 3000666 3000778 3000905 3001055 3001155 3001334 3001398 3001539 3001755
+等待全部完成...
+全部结束（失败 0 个）。
+
+==================================================================
+ 合并结果
+==================================================================
+---- epoch 0 (3 片) ----
+  raws = [torch.load(p, map_location="cpu") for p in args.shards]
+合并 3 片 [epoch0]  ckpt=runs/sft/2026-08-11_07-35-22/epoch=0-loss=1.2551.ckpt  样本合计 total=5569
++-------------------------------------------------------------------+
+|      STP3's Definition Planning Metrics (Cumulative Average)      |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0000 | 0.0000 | 0.0001 | 0.0001 | 0.0005 | 0.0011 |
+| obj_box_col | 0.0011 | 0.0010 | 0.0016 | 0.0025 | 0.0042 | 0.0068 |
+|      L2     | 0.2281 | 0.3404 | 0.4756 | 0.6324 | 0.8069 | 0.9978 |
++-------------+--------+--------+--------+--------+--------+--------+
++-------------------------------------------------------------------+
+|         UniAD's Definition Planning Metrics (Per-Timestep)        |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0000 | 0.0000 | 0.0002 | 0.0004 | 0.0018 | 0.0043 |
+| obj_box_col | 0.0011 | 0.0009 | 0.0027 | 0.0052 | 0.0113 | 0.0196 |
+|      L2     | 0.2281 | 0.4527 | 0.7459 | 1.1027 | 1.5049 | 1.9527 |
++-------------+--------+--------+--------+--------+--------+--------+
+
+结果已存: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/FINAL_ep012_results.txt
+---- epoch 1 (3 片) ----
+  raws = [torch.load(p, map_location="cpu") for p in args.shards]
+合并 3 片 [epoch1]  ckpt=runs/sft/2026-08-11_07-35-22/epoch=1-loss=1.2868.ckpt  样本合计 total=5569
++-------------------------------------------------------------------+
+|      STP3's Definition Planning Metrics (Cumulative Average)      |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0000 | 0.0000 | 0.0001 | 0.0001 | 0.0002 | 0.0008 |
+| obj_box_col | 0.0009 | 0.0038 | 0.0054 | 0.0057 | 0.0064 | 0.0077 |
+|      L2     | 0.2233 | 0.3298 | 0.4668 | 0.6186 | 0.7847 | 0.9701 |
++-------------+--------+--------+--------+--------+--------+--------+
++-------------------------------------------------------------------+
+|         UniAD's Definition Planning Metrics (Per-Timestep)        |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0000 | 0.0000 | 0.0002 | 0.0002 | 0.0007 | 0.0036 |
+| obj_box_col | 0.0009 | 0.0066 | 0.0088 | 0.0066 | 0.0090 | 0.0142 |
+|      L2     | 0.2233 | 0.4363 | 0.7409 | 1.0740 | 1.4489 | 1.8975 |
++-------------+--------+--------+--------+--------+--------+--------+
+
+结果已存: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/FINAL_ep012_results.txt
+---- epoch 2 (3 片) ----
+  raws = [torch.load(p, map_location="cpu") for p in args.shards]
+合并 3 片 [epoch2]  ckpt=runs/sft/2026-08-11_07-35-22/epoch=2-loss=1.4139.ckpt  样本合计 total=5569
++-------------------------------------------------------------------+
+|      STP3's Definition Planning Metrics (Cumulative Average)      |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0002 | 0.0001 | 0.0001 | 0.0001 | 0.0001 | 0.0007 |
+| obj_box_col | 0.0068 | 0.0076 | 0.0077 | 0.0068 | 0.0072 | 0.0081 |
+|      L2     | 0.2289 | 0.3465 | 0.4718 | 0.6177 | 0.7830 | 0.9653 |
++-------------+--------+--------+--------+--------+--------+--------+
++-------------------------------------------------------------------+
+|         UniAD's Definition Planning Metrics (Per-Timestep)        |
++-------------+--------+--------+--------+--------+--------+--------+
+|   metrics   |  0.5s  |  1.0s  |  1.5s  |  2.0s  |  2.5s  |  3.0s  |
++-------------+--------+--------+--------+--------+--------+--------+
+|   obj_col   | 0.0002 | 0.0000 | 0.0002 | 0.0000 | 0.0004 | 0.0034 |
+| obj_box_col | 0.0068 | 0.0084 | 0.0077 | 0.0041 | 0.0088 | 0.0126 |
+|      L2     | 0.2289 | 0.4640 | 0.7223 | 1.0554 | 1.4443 | 1.8766 |
++-------------+--------+--------+--------+--------+--------+--------+
+
+结果已存: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/FINAL_ep012_results.txt
+
+==================================================================
+ 最终三 epoch 汇总表: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/FINAL_ep012_results.txt
+ 各 job 日志/分片表:  /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0810_nvidia/eval_mix_ep012_2026-08-12_18-43-54/
+==================================================================

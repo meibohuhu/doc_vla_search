@@ -1,0 +1,143 @@
+==================================================================
+ GRPO (RFT) on CoT SFT   —— 3 卡 (物理 4/5/6), DDP, LoRA
+ config      : config/training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-3gpu.yaml
+ sft_model   : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=3-loss=0.4446.ckpt
+ train       : navtrain50k_cot (5万) + navtrain_metric_cache
+ reward      : PDMS (rl_pdm_score)
+ 
+ LOG         : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0901_nvidia/grpo_cot_3gpu_2026-09-03_04-41-44.log
+==================================================================
+Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:02<00:02,  2.21s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.05s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.23s/it]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.22it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.65it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.58it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+[rank: 1] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 0] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/6
+Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.92it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.91it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.70it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[rank: 2] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.91it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.87it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.67it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[rank: 3] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.90it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.91it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.70it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[rank: 4] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.01it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.11it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.87it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[rank: 5] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.02it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.14it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.90it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.24it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.83it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.40it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.23it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.07it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.13it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.69it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.59it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.58it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.47it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.30it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.49it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  4.24it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  4.10it/s]
+Traceback (most recent call last):
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/tools/run_rft.py", line 125, in <module>
+    model = GRPOAutoVLA(config)
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/models/autovla.py", line 53, in __init__
+    state_dict = torch.load(config['model']['sft_model_path'])["state_dict"]
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1097, in load
+    return _load(
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1525, in _load
+    result = unpickler.load()
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1492, in persistent_load
+    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1466, in load_tensor
+    wrap_storage=restore_location(storage, location),
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 414, in default_restore_location
+    result = fn(storage, location)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 392, in _deserialize
+    return obj.to(device=device)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/storage.py", line 187, in to
+    return _to(self, device, non_blocking)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/_utils.py", line 89, in _to
+    untyped_storage = torch.UntypedStorage(self.size(), device=device)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 86.00 MiB. GPU 0 has a total capacity of 79.25 GiB of which 96.06 MiB is free. Process 2845124 has 14.41 GiB memory in use. Process 2849341 has 14.41 GiB memory in use. Process 2849476 has 13.38 GiB memory in use. Process 2849513 has 12.44 GiB memory in use. Including non-PyTorch memory, this process has 12.52 GiB memory in use. Process 2849621 has 11.95 GiB memory in use. Of the allocated memory 12.11 GiB is allocated by PyTorch, and 3.53 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/tools/run_rft.py", line 125, in <module>
+    model = GRPOAutoVLA(config)
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/models/autovla.py", line 53, in __init__
+    state_dict = torch.load(config['model']['sft_model_path'])["state_dict"]
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1097, in load
+    return _load(
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1525, in _load
+    result = unpickler.load()
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1492, in persistent_load
+    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1466, in load_tensor
+    wrap_storage=restore_location(storage, location),
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 414, in default_restore_location
+    result = fn(storage, location)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 392, in _deserialize
+    return obj.to(device=device)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/storage.py", line 187, in to
+    return _to(self, device, non_blocking)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/_utils.py", line 89, in _to
+    untyped_storage = torch.UntypedStorage(self.size(), device=device)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 86.00 MiB. GPU 0 has a total capacity of 79.25 GiB of which 96.06 MiB is free. Process 2845124 has 14.41 GiB memory in use. Process 2849341 has 14.41 GiB memory in use. Including non-PyTorch memory, this process has 13.38 GiB memory in use. Process 2849513 has 12.44 GiB memory in use. Process 2849564 has 12.52 GiB memory in use. Process 2849621 has 11.95 GiB memory in use. Of the allocated memory 12.97 GiB is allocated by PyTorch, and 1.46 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/tools/run_rft.py", line 125, in <module>
+    model = GRPOAutoVLA(config)
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/models/autovla.py", line 53, in __init__
+    state_dict = torch.load(config['model']['sft_model_path'])["state_dict"]
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1097, in load
+    return _load(
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1525, in _load
+    result = unpickler.load()
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1492, in persistent_load
+    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1466, in load_tensor
+    wrap_storage=restore_location(storage, location),
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 414, in default_restore_location
+    result = fn(storage, location)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 392, in _deserialize
+    return obj.to(device=device)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/storage.py", line 187, in to
+    return _to(self, device, non_blocking)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/_utils.py", line 89, in _to
+    untyped_storage = torch.UntypedStorage(self.size(), device=device)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 86.00 MiB. GPU 0 has a total capacity of 79.25 GiB of which 16.06 MiB is free. Process 2845124 has 14.41 GiB memory in use. Process 2849341 has 14.41 GiB memory in use. Process 2849476 has 13.38 GiB memory in use. Process 2849513 has 12.52 GiB memory in use. Process 2849564 has 12.52 GiB memory in use. Including non-PyTorch memory, this process has 11.95 GiB memory in use. Of the allocated memory 11.54 GiB is allocated by PyTorch, and 11.58 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/tools/run_rft.py", line 125, in <module>
+    model = GRPOAutoVLA(config)
+  File "/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/models/autovla.py", line 53, in __init__
+    state_dict = torch.load(config['model']['sft_model_path'])["state_dict"]
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1097, in load
+    return _load(
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1525, in _load
+    result = unpickler.load()
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1492, in persistent_load
+    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 1466, in load_tensor
+    wrap_storage=restore_location(storage, location),
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 414, in default_restore_location
+    result = fn(storage, location)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/serialization.py", line 392, in _deserialize
+    return obj.to(device=device)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/storage.py", line 187, in to
+    return _to(self, device, non_blocking)
+  File "/data/autovla_data/envs/autovla/lib/python3.9/site-packages/torch/_utils.py", line 89, in _to
+    untyped_storage = torch.UntypedStorage(self.size(), device=device)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 86.00 MiB. GPU 0 has a total capacity of 79.25 GiB of which 16.06 MiB is free. Process 2845124 has 14.41 GiB memory in use. Process 2849341 has 14.41 GiB memory in use. Process 2849476 has 13.38 GiB memory in use. Including non-PyTorch memory, this process has 12.52 GiB memory in use. Process 2849564 has 12.52 GiB memory in use. Process 2849621 has 11.95 GiB memory in use. Of the allocated memory 12.11 GiB is allocated by PyTorch, and 3.53 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[rank: 2] Child process with PID 2849476 terminated with code 1. Forcefully terminating all other processes to avoid zombies 🧟
+scripts/0901/run_grpo_cot_3gpu.sh: line 56: 2845124 Killed                  $PY tools/run_rft.py --config "$CONFIG" 2>&1
+     2845125 Done                    | tee "$LOG"
+exit=137  LOG=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0901_nvidia/grpo_cot_3gpu_2026-09-03_04-41-44.log

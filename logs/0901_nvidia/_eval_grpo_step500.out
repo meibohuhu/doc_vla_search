@@ -1,0 +1,27 @@
+==================================================================
+ CoT SFT greedy 评测 (PDMS on navtest)
+ ckpt      : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/grpo/2026-09-03_05-02-39/rft-step500-reward8.8125.ckpt
+ eval cfg  : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/config/eval/0721/autovla-navtest-eval.yaml (use_cot=True)
+ 解码      : greedy (AUTOVLA_SAMPLE_TOP_K=1)
+ 分片      : 3 job → GPU [1] 各 3 个
+ 场景      : 全量 navtest(12146)
+ 输出      : /data/autovla_data/nuplan/../eval/nuplan/cot_sft_greedy_eval/rft_step500_reward8_8125
+==================================================================
+  shard 0: 4,049 tokens
+  shard 1: 4,049 tokens
+  shard 2: 4,048 tokens
+合计 12,146
+
+启动 3 个 job ...
+  job0 -> GPU 1
+  job1 -> GPU 1
+  job2 -> GPU 1
+已启动 3 个进程，等待全部完成 ...
+
+==================== 结果 ====================
+ckpt: rft-step500-reward8.8125.ckpt   n=12126
+                PDMS      NC     DAC      EP     TTC       C     DDC
+   80.24   96.61   89.66   75.90   90.98   99.99   96.07
+
+参照: 发布 RFT ckpt 同批 1000 场景 PDMS=89.06 / 全量 12126 上 89.48
+合并 CSV: /data/autovla_data/nuplan/../eval/nuplan/cot_sft_greedy_eval/rft_step500_reward8_8125/cotgreedy_merged.csv

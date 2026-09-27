@@ -1,0 +1,164 @@
+==================================================================
+ GRPO (RFT) on CoT SFT   —— 3 卡 (物理 4/5/6), DDP, LoRA
+ config      : config/training/qwen2.5-vl-3B-nuplan-grpo-cot-brev-3gpu.yaml
+ sft_model   : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+ train       : navtrain50k_cot (5万) + navtrain_metric_cache
+ reward      : PDMS (rl_pdm_score)
+ 
+ LOG         : /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/logs/0901_nvidia/grpo_cot_3gpu_2026-09-03_04-49-25.log
+==================================================================
+Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:02<00:02,  2.62s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.21s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.42s/it]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.23it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.83it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+[rank: 1] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 2] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 3] Seed set to 42
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 4] Seed set to 42
+Loading checkpoint shards:  50%|█████     | 1/2 [00:02<00:02,  2.13s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:03<00:03,  3.53s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.05s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.02s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.19s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.60s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.89s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.76it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.56it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.28it/s][rank: 5] Seed set to 42
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.23it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.00it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[group] per_prompt_G=4  sampler=lightning-injected DistributedSampler（各卡不同帧）
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][rank: 0] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/6
+Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.69it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.71it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.48it/s]
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.27it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  4.05it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.91it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.81it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.22it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.70it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.52it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.07it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.90it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.26it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.19it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  3.00it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.61it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.61it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.39it/s]
+[rank: 3] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 3, MEMBER: 4/6
+[W903 04:51:25.401678306 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+[rank: 1] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/6
+[W903 04:51:31.839705521 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+[rank: 2] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/6
+[W903 04:51:36.680027549 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+[rank: 4] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 4, MEMBER: 5/6
+[W903 04:51:36.684940166 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+[rank: 5] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 5, MEMBER: 6/6
+[W903 04:51:39.081036932 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+[W903 04:51:39.081645942 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 6 processes
+----------------------------------------------------------------------------------------------------
+
+wandb: WARNING The anonymous setting has no effect and will be removed in a future version.
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/nvidia/.netrc.
+wandb: Currently logged in as: mhphoenix (mhphoenix-rochester-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in runs/wandb/run-20260903_045147-lh75y9rr
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run grpo-2026-09-03_04-50-22
+wandb: ⭐️ View project at https://wandb.ai/mhphoenix-rochester-institute-of-technology/autovla-grpo-cot
+wandb: 🚀 View run at https://wandb.ai/mhphoenix-rochester-institute-of-technology/autovla-grpo-cot/runs/lh75y9rr
+wandb: Detected [huggingface_hub.inference] in use.
+wandb: Use W&B Weave for improved LLM call tracing. Install Weave with `pip install weave` then add `import weave` to the top of your script.
+wandb: For more information, check out the docs at: https://weave-docs.wandb.ai
+LOCAL_RANK: 3 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+LOCAL_RANK: 4 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+LOCAL_RANK: 5 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [1,2,3,4,5,6]
+
+  | Name            | Type    | Params
+--------------------------------------------
+0 | autovla         | AutoVLA | 3.8 B 
+1 | reference_model | AutoVLA | 3.8 B 
+--------------------------------------------
+3.7 M     Trainable params
+7.5 B     Non-trainable params
+7.5 B     Total params
+30,080.844Total estimated model params size (MB)
+/data/autovla_data/envs/autovla/lib/python3.9/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:441: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=4` in the `DataLoader` to improve performance.
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Using online reference model from /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+[teacher] enabled  trigger=nc_only  w_viol=1.0  w_say=0.2  clip_c=1.0
+Loading and remapping checkpoint from: /home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA/runs/sft/2026-09-02_05-47-39/epoch=4-loss=0.4436.ckpt
+Using LoRA mode for GRPO training.
+LoRA-enabled model trainable parameters: 3686400
+[parallel] strategy=ddp
+[logger] wandb 已启用 project=autovla-grpo-cot
+Training: |          | 0/? [00:00<?, ?it/s]Training:   0%|          | 0/4167 [00:00<?, ?it/s]Epoch 0:   0%|          | 0/4167 [00:00<?, ?it/s] [rollout-dump] rank0 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank0.jsonl
+Epoch 0:   0%|          | 1/4167 [00:14<16:43:02,  0.07it/s]Epoch 0:   0%|          | 1/4167 [00:14<16:43:09,  0.07it/s, v_num=y9rr, loss=-1.32e-6]Epoch 0:   0%|          | 2/4167 [00:29<16:48:28,  0.07it/s, v_num=y9rr, loss=-1.32e-6]Epoch 0:   0%|          | 2/4167 [00:29<16:48:31,  0.07it/s, v_num=y9rr, loss=1.68e-5] Epoch 0:   0%|          | 3/4167 [00:44<17:15:06,  0.07it/s, v_num=y9rr, loss=1.68e-5]Epoch 0:   0%|          | 3/4167 [00:44<17:15:08,  0.07it/s, v_num=y9rr, loss=2.64e-5]Epoch 0:   0%|          | 4/4167 [00:58<16:54:08,  0.07it/s, v_num=y9rr, loss=2.64e-5]Epoch 0:   0%|          | 4/4167 [00:58<16:54:10,  0.07it/s, v_num=y9rr, loss=3.16e-5]Epoch 0:   0%|          | 5/4167 [01:12<16:51:10,  0.07it/s, v_num=y9rr, loss=3.16e-5]Epoch 0:   0%|          | 5/4167 [01:12<16:51:11,  0.07it/s, v_num=y9rr, loss=3.21e-5]Epoch 0:   0%|          | 6/4167 [01:26<16:44:27,  0.07it/s, v_num=y9rr, loss=3.21e-5]Epoch 0:   0%|          | 6/4167 [01:26<16:44:29,  0.07it/s, v_num=y9rr, loss=2.12e-5]Epoch 0:   0%|          | 7/4167 [01:40<16:39:36,  0.07it/s, v_num=y9rr, loss=2.12e-5]Epoch 0:   0%|          | 7/4167 [01:40<16:39:37,  0.07it/s, v_num=y9rr, loss=2.26e-5]Epoch 0:   0%|          | 8/4167 [01:55<16:41:06,  0.07it/s, v_num=y9rr, loss=2.26e-5]Epoch 0:   0%|          | 8/4167 [01:55<16:41:07,  0.07it/s, v_num=y9rr, loss=3.11e-5]Epoch 0:   0%|          | 9/4167 [02:10<16:42:03,  0.07it/s, v_num=y9rr, loss=3.11e-5]Epoch 0:   0%|          | 9/4167 [02:10<16:42:04,  0.07it/s, v_num=y9rr, loss=2.25e-5]Epoch 0:   0%|          | 10/4167 [02:23<16:31:23,  0.07it/s, v_num=y9rr, loss=2.25e-5]Epoch 0:   0%|          | 10/4167 [02:23<16:31:24,  0.07it/s, v_num=y9rr, loss=2.02e-5]Epoch 0:   0%|          | 11/4167 [02:38<16:34:58,  0.07it/s, v_num=y9rr, loss=2.02e-5]Epoch 0:   0%|          | 11/4167 [02:38<16:34:59,  0.07it/s, v_num=y9rr, loss=2.81e-5]Epoch 0:   0%|          | 12/4167 [02:51<16:31:53,  0.07it/s, v_num=y9rr, loss=2.81e-5]Epoch 0:   0%|          | 12/4167 [02:51<16:31:54,  0.07it/s, v_num=y9rr, loss=2.01e-5]Epoch 0:   0%|          | 13/4167 [03:06<16:35:24,  0.07it/s, v_num=y9rr, loss=2.01e-5]Epoch 0:   0%|          | 13/4167 [03:06<16:35:25,  0.07it/s, v_num=y9rr, loss=1.63e-5]Epoch 0:   0%|          | 14/4167 [03:21<16:34:11,  0.07it/s, v_num=y9rr, loss=1.63e-5]Epoch 0:   0%|          | 14/4167 [03:21<16:34:11,  0.07it/s, v_num=y9rr, loss=1.79e-5]Epoch 0:   0%|          | 15/4167 [03:35<16:32:37,  0.07it/s, v_num=y9rr, loss=1.79e-5]Epoch 0:   0%|          | 15/4167 [03:35<16:32:38,  0.07it/s, v_num=y9rr, loss=2.31e-5]Epoch 0:   0%|          | 16/4167 [03:49<16:30:40,  0.07it/s, v_num=y9rr, loss=2.31e-5]Epoch 0:   0%|          | 16/4167 [03:49<16:30:40,  0.07it/s, v_num=y9rr, loss=7.71e-6]Epoch 0:   0%|          | 17/4167 [04:02<16:27:55,  0.07it/s, v_num=y9rr, loss=7.71e-6]Epoch 0:   0%|          | 17/4167 [04:02<16:27:55,  0.07it/s, v_num=y9rr, loss=2.21e-5]Epoch 0:   0%|          | 18/4167 [04:17<16:30:33,  0.07it/s, v_num=y9rr, loss=2.21e-5]Epoch 0:   0%|          | 18/4167 [04:17<16:30:33,  0.07it/s, v_num=y9rr, loss=2.01e-5]Epoch 0:   0%|          | 19/4167 [04:32<16:32:03,  0.07it/s, v_num=y9rr, loss=2.01e-5]Epoch 0:   0%|          | 19/4167 [04:32<16:32:03,  0.07it/s, v_num=y9rr, loss=1.56e-5]Epoch 0:   0%|          | 20/4167 [04:46<16:28:41,  0.07it/s, v_num=y9rr, loss=1.56e-5]Epoch 0:   0%|          | 20/4167 [04:46<16:28:41,  0.07it/s, v_num=y9rr, loss=2.98e-5]Epoch 0:   1%|          | 21/4167 [05:00<16:30:18,  0.07it/s, v_num=y9rr, loss=2.98e-5]Epoch 0:   1%|          | 21/4167 [05:00<16:30:18,  0.07it/s, v_num=y9rr, loss=1.86e-5]Epoch 0:   1%|          | 22/4167 [05:13<16:24:40,  0.07it/s, v_num=y9rr, loss=1.86e-5]Epoch 0:   1%|          | 22/4167 [05:13<16:24:40,  0.07it/s, v_num=y9rr, loss=1.98e-5]Epoch 0:   1%|          | 23/4167 [05:28<16:27:11,  0.07it/s, v_num=y9rr, loss=1.98e-5]Epoch 0:   1%|          | 23/4167 [05:28<16:27:12,  0.07it/s, v_num=y9rr, loss=2.58e-5]Epoch 0:   1%|          | 24/4167 [05:43<16:27:00,  0.07it/s, v_num=y9rr, loss=2.58e-5]Epoch 0:   1%|          | 24/4167 [05:43<16:27:00,  0.07it/s, v_num=y9rr, loss=1.68e-5]Epoch 0:   1%|          | 25/4167 [05:56<16:24:37,  0.07it/s, v_num=y9rr, loss=1.68e-5]Epoch 0:   1%|          | 25/4167 [05:56<16:24:37,  0.07it/s, v_num=y9rr, loss=2.1e-5] Epoch 0:   1%|          | 26/4167 [06:11<16:25:25,  0.07it/s, v_num=y9rr, loss=2.1e-5]Epoch 0:   1%|          | 26/4167 [06:11<16:25:25,  0.07it/s, v_num=y9rr, loss=2.88e-5]Epoch 0:   1%|          | 27/4167 [06:26<16:26:46,  0.07it/s, v_num=y9rr, loss=2.88e-5]Epoch 0:   1%|          | 27/4167 [06:26<16:26:46,  0.07it/s, v_num=y9rr, loss=2.57e-5]Epoch 0:   1%|          | 28/4167 [06:40<16:25:49,  0.07it/s, v_num=y9rr, loss=2.57e-5]Epoch 0:   1%|          | 28/4167 [06:40<16:25:49,  0.07it/s, v_num=y9rr, loss=2.58e-5]Epoch 0:   1%|          | 29/4167 [06:53<16:23:14,  0.07it/s, v_num=y9rr, loss=2.58e-5]Epoch 0:   1%|          | 29/4167 [06:53<16:23:14,  0.07it/s, v_num=y9rr, loss=1.78e-5]Epoch 0:   1%|          | 30/4167 [07:08<16:25:32,  0.07it/s, v_num=y9rr, loss=1.78e-5]Epoch 0:   1%|          | 30/4167 [07:08<16:25:32,  0.07it/s, v_num=y9rr, loss=2.37e-5]Epoch 0:   1%|          | 31/4167 [07:22<16:23:35,  0.07it/s, v_num=y9rr, loss=2.37e-5]Epoch 0:   1%|          | 31/4167 [07:22<16:23:35,  0.07it/s, v_num=y9rr, loss=2.07e-5]Epoch 0:   1%|          | 32/4167 [07:38<16:26:41,  0.07it/s, v_num=y9rr, loss=2.07e-5]Epoch 0:   1%|          | 32/4167 [07:38<16:26:41,  0.07it/s, v_num=y9rr, loss=2.54e-5]Epoch 0:   1%|          | 33/4167 [07:51<16:24:45,  0.07it/s, v_num=y9rr, loss=2.54e-5]Epoch 0:   1%|          | 33/4167 [07:51<16:24:45,  0.07it/s, v_num=y9rr, loss=2.57e-5]Epoch 0:   1%|          | 34/4167 [08:06<16:25:17,  0.07it/s, v_num=y9rr, loss=2.57e-5]Epoch 0:   1%|          | 34/4167 [08:06<16:25:17,  0.07it/s, v_num=y9rr, loss=1.33e-5]Epoch 0:   1%|          | 35/4167 [08:20<16:23:58,  0.07it/s, v_num=y9rr, loss=1.33e-5]Epoch 0:   1%|          | 35/4167 [08:20<16:23:58,  0.07it/s, v_num=y9rr, loss=2.8e-5] Epoch 0:   1%|          | 36/4167 [08:34<16:24:09,  0.07it/s, v_num=y9rr, loss=2.8e-5]Epoch 0:   1%|          | 36/4167 [08:34<16:24:09,  0.07it/s, v_num=y9rr, loss=2.47e-5][rank: 0] Received SIGTERM: 15
+[rank: 4] Received SIGTERM: 15
+pid 2871154 killing 2874035 with 15
+pid 2871154 killing 2874100 with 15
+pid 2871154 killing 2874260 with 15
+pid 2871154 killing 2874303 with 15
+pid 2871154 killing 2874418 with 15
+[rank: 4] Received SIGTERM: 15
+[rank: 3] Received SIGTERM: 15
+[rank: 2] Received SIGTERM: 15
+[rank: 1] Received SIGTERM: 15
+[rank: 5] Received SIGTERM: 15
+Epoch 0:   1%|          | 37/4167 [08:48<16:22:20,  0.07it/s, v_num=y9rr, loss=2.47e-5]Epoch 0:   1%|          | 37/4167 [08:48<16:22:21,  0.07it/s, v_num=y9rr, loss=2.08e-5][rollout-dump] rank1 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank1.jsonl
+[rollout-dump] rank5 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank5.jsonl
+[rollout-dump] rank2 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank2.jsonl
+[rollout-dump] rank3 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank3.jsonl
+[rollout-dump] rank4 → runs/grpo_rollouts/bs2_3gpu/rollouts_rank4.jsonl
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mgrpo-2026-09-03_04-50-22[0m at: [34mhttps://wandb.ai/mhphoenix-rochester-institute-of-technology/autovla-grpo-cot/runs/lh75y9rr[0m
+[rank0]:[W903 05:01:05.003945953 ProcessGroupNCCL.cpp:1168] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
