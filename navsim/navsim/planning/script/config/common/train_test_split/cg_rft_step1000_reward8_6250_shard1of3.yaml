@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: cg_rft_step1000_reward8_6250_shard1of3
+
+data_split: test

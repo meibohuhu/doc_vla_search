@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_0910_ep5_nocot_full_shard2of6
+
+data_split: test

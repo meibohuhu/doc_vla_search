@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: cg103k1000_shard1of3
+
+data_split: test

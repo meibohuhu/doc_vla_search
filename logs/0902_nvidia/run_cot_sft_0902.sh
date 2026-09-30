@@ -12,7 +12,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev"
 TAG="navtrain_cot_sft_0902"
 
 # 🔴 本机 GPU0 已坏，CUDA 只有 0-6 共 7 张。

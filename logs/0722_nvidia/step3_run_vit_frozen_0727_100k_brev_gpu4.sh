@@ -15,7 +15,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev-4gpu"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev-4gpu"
 TAG="navtrain_vit_frozen_0727_100k_brev_gpu4"
 
 cd "$REPO"

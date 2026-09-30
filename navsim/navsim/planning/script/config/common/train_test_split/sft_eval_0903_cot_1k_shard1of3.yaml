@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_0903_cot_1k_shard1of3
+
+data_split: test

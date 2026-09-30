@@ -13,7 +13,7 @@ PY=/data/autovla_data/envs/autovla/bin/python
 cd "$REPO"
 
 RUN=runs/sft/2026-08-11_07-35-22
-CONFIG=config/training/qwen2.5-vl-3B-mix-nuplan-nuscenes-nocot-sft.yaml   # data.val = nuScenes val
+CONFIG=config/training/0916_nvidia/qwen2.5-vl-3B-mix-nuplan-nuscenes-nocot-sft.yaml   # data.val = nuScenes val
 SEG_DATA=/data/autovla_data/nuscenes/nusc_eval_seg/nusc_eval_seg_6s
 NUM_SHARDS=3
 GPUS=(0 1 2 3)                      # 只用 4 卡

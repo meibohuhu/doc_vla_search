@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: casestudy3f_rightturn_offroad
+
+data_split: test

@@ -11,7 +11,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-mix166k-brev-2gpu"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-nocot-sft-mix166k-brev-2gpu"
 TAG="mix166k_nocot_sft_2gpu_0905"
 GPUS="${GPUS:-4,5}"      # 2 卡 x accum 16 = global batch 32
 

@@ -1,3 +1,5 @@
+import os
+import json
 from typing import Any, List, Dict, Optional, Union
 import torch
 import numpy as np
@@ -436,11 +438,26 @@ class AutoVLAAgent(AbstractAgent):
         with torch.no_grad():
             poses, cot_results = self.autovla.predict(features)
 
+        # --- mh 26-07-22: 可选的模型输出转储 ---
+        # 设 AUTOVLA_DUMP_OUTPUT=<目录> 即可把每个场景的原始生成文本落盘（JSONL）。
+        # 上游把 cot_results 返回后就丢了（run_pdm_score_cot.py 里只有注释掉的可视化用到），
+        # 想看模型到底输出了什么就没有别的入口。默认不设 = 完全不影响原行为。
+        # 每个进程写自己的文件（带 pid），避免分片并行时互相覆盖。
+        _dump_dir = os.environ.get("AUTOVLA_DUMP_OUTPUT")
+        if _dump_dir:
+            os.makedirs(_dump_dir, exist_ok=True)
+            with open(os.path.join(_dump_dir, f"outputs_{os.getpid()}.jsonl"), "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({
+                    "token": scene_data.get("token") if isinstance(scene_data, dict) else None,
+                    "raw_output": cot_results,
+                    "trajectory": poses[: self._trajectory_sampling.num_poses, :].tolist(),
+                }, ensure_ascii=False) + "\n")
+
         submission = False
         if submission:
             poses_sub = self.upsample_trajectory(poses)
             return Trajectory(poses_sub, self._trajectory_sampling)
-        else:        
+        else:
             # extract trajectory
             return Trajectory(poses[: self._trajectory_sampling.num_poses,:], self._trajectory_sampling), cot_results
     

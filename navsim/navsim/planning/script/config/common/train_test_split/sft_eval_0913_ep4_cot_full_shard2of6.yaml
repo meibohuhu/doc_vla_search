@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_0913_ep4_cot_full_shard2of6
+
+data_split: test

@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: sft_eval_0910_ep3_nocot_shard2of3
+
+data_split: test

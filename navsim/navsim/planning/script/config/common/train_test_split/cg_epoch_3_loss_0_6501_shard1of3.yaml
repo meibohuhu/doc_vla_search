@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: cg_epoch_3_loss_0_6501_shard1of3
+
+data_split: test

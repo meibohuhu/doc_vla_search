@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: casestudy3f
+
+data_split: test

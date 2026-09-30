@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: cotgreedy_shard2of9
+
+data_split: test

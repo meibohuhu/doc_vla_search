@@ -19,7 +19,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuscenes-nocot-sft"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuscenes-nocot-sft"
 TAG="nuscenes_nocot_sft_vitfrozen"
 
 cd "$REPO"

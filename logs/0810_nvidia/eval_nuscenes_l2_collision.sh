@@ -25,7 +25,7 @@ cd "$REPO"
 GPU=${GPU:-0}
 NUM=${NUM:-}                                   # 空 = 全量；给数字 = 只评前 N 条（冒烟）
 # nusc_eval 只读 config 的 model + data.val，直接复用训练 config（val 路径已是 /data）
-CONFIG=${CONFIG:-config/training/qwen2.5-vl-3B-nuscenes-nocot-sft.yaml}
+CONFIG=${CONFIG:-config/training/0916_nvidia/qwen2.5-vl-3B-nuscenes-nocot-sft.yaml}
 SEG_DATA=${SEG_DATA:-/data/autovla_data/nuscenes/nusc_eval_seg/nusc_eval_seg_6s}
 
 # --- CKPT：默认取最新 run 里 val_loss 最低的那个 ---

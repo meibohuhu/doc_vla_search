@@ -13,7 +13,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-cot-sft-trainval166k-brev"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-cot-sft-trainval166k-brev"
 TAG="trainval166k_cot_sft_0902"
 
 # 🔴 本机 GPU0 已坏? -> 实测 0 可用;CUDA 0-6 共 7 张。global batch 必须 = 32,

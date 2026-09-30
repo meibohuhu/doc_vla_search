@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: casestudy3f_leftturn_ped_seq
+
+data_split: test

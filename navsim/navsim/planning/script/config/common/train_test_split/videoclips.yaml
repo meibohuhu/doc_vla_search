@@ -1,0 +1,4 @@
+defaults:
+  - scene_filter: videoclips
+
+data_split: test

@@ -14,7 +14,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-trainval166k-brev"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-nocot-sft-trainval166k-brev"
 TAG="trainval166k_nocot_sft_0903"
 
 # global batch 必须 = 32：4 卡 x accum 8 = 32。默认用【0,4,5,6】(1/2/3 常被评测/GRPO 占)。

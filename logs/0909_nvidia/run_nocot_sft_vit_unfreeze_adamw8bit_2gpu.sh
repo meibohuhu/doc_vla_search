@@ -13,7 +13,7 @@ set -u
 
 REPO=/home/nvidia/workspace/doc_drive_search/other_repo/AutoVLA
 PY=/data/autovla_data/envs/autovla/bin/python
-CONFIG="training/qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze-adamw8bit-brev-2gpu"
+CONFIG="training/0916_nvidia/qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze-adamw8bit-brev-2gpu"
 TAG="navtrain_vit_unfreeze_adamw8bit_2gpu"
 GPUS="${GPUS:-4,5}"      # 2 卡 x accum 16 = global batch 32; 与 4gpu(0,1,2,3) 岔开
 
