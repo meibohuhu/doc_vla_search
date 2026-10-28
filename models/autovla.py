@@ -693,10 +693,14 @@ class SFTAutoVLA(pl.LightningModule):
             #    所以无条件记:所有 rank 走同一条路径。
             # ⚠️ 代价:act_directly 档这里只有模板 token(loss 很快 ~0)，会把曲线拉低。
             #    但 75% 的 step 是 CoT，模板项趋近 0，曲线仍然主要反映 reasoning。
+            # [mh 2026/10/27] 改成无条件 log：cf 的解耦样本文字 label 全是 -100，
+            #   batch_size=1 时这个 rank 就没有文字 token。原来 `if _tm.any()` 会让它跳过 log，
+            #   别的 rank 却进了 sync_dist 的 all-reduce → 和上面说的一样 DDP 死锁。
+            #   没有文字 token 时记 0（解耦样本约占 2.5%，对曲线影响很小）。
             _tm = (labels_flat != -100) & (~action_mask)
-            if _tm.any():
-                self.log("train_text_loss", ce_loss_all[_tm].mean(), sync_dist=True,
-                         batch_size=gt_action.shape[0])
+            _tl = (ce_loss_all * _tm).sum() / _tm.sum().clamp(min=1)
+            self.log("train_text_loss", _tl, sync_dist=True,
+                     batch_size=gt_action.shape[0])
 ######################################################### 修改这里 #########################################################
 
 ######################################################### 修改这里 #########################################################
@@ -770,10 +774,10 @@ class SFTAutoVLA(pl.LightningModule):
                 self.log("val_action_top1", _acc, sync_dist=True, prog_bar=True,
                          batch_size=gt_action.shape[0])
             # 同 training_step:不能按 has_cot 分支，否则 sync_dist 的 all-reduce 会错配死锁
+            # [mh 2026/10/27] 同 training_step：无条件 log，解耦 cf 样本没有文字 token 时记 0
             _tm = (_lb != -100) & (~_m)
-            if _tm.any():
-                self.log("val_text_loss", F.cross_entropy(_lg[_tm].float(), _lb[_tm]),
-                         sync_dist=True, batch_size=gt_action.shape[0])
+            _vt = F.cross_entropy(_lg[_tm].float(), _lb[_tm]) if _tm.any() else _lg.new_zeros((), dtype=torch.float32)
+            self.log("val_text_loss", _vt, sync_dist=True, batch_size=gt_action.shape[0])
 ######################################################### 修改这里 #########################################################
         
         return loss

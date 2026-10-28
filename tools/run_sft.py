@@ -102,7 +102,8 @@ if __name__ == "__main__":
     data_collator = DataCollator(
         processor=processor,
         ignore_index=config['model']['tokens']['ignore_index'],
-        assistant_id=config['model']['tokens']['assistant_id']
+        assistant_id=config['model']['tokens']['assistant_id'],
+        action_start_id=config['model']['tokens']['action_start_id'],   # 解耦 cf 样本只训 action token 用
     )
     
     train_data = DataLoader(
@@ -255,8 +256,10 @@ if __name__ == "__main__":
 ######################################################### 修改这里 #########################################################
         logger=loggers,
         enable_model_summary=True,
-
-        # limit_val_batches=0.001
+        # [mh 2026/10/27] 调试用，config 不写就和原来一样（跑满 epochs、val 全量）
+        max_steps=config['training'].get('max_steps', -1),
+        limit_val_batches=config['training'].get('limit_val_batches', 1.0),
+        val_check_interval=config['training'].get('val_check_interval', 1.0),
     )
     torch.cuda.empty_cache()
     trainer.fit(model, train_dataloaders=train_data, val_dataloaders=val_data)
