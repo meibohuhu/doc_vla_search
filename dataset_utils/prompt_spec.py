@@ -41,6 +41,45 @@ SYSTEM_COT = (
 )
 
 
+# ── 相机输入 ────────────────────────────────────────────────────────────────
+# [mh 2026-10-05] 每路相机用几帧可配：model.video.num_frames（1-4，默认 4 = 原行为）。
+#   JSON 里每路存 4 帧（旧→新，最后一帧 = 当前帧，2Hz：-1.5s/-1.0s/-0.5s/0s），这里取最后 N 帧。
+#   🔴 SFT（dataset_utils/sft_dataset.py）与推理/RL（models/autovla.py::get_prompt）都从这里拼，
+#      两边帧数和文案不可能对不上。num_frames=4 时与改动前逐字节一致。
+#   N=1 仍按 video 喂（Qwen 按 temporal_patch_size=2 把单帧复制成 2 帧）：模型 forward / RFT
+#      只认 pixel_values_videos / video_grid_thw，换成 image 会断。
+CAMERA_INTRO = (
+    "The autonomous vehicle is equipped with three cameras mounted at the front, left, and right, "
+    "enabling a comprehensive perception of the surrounding environment."
+)
+_CAMERAS = (("front_camera", "first", "front"),
+            ("front_left_camera", "second", "front-left"),
+            ("front_right_camera", "third", "front-right"))
+_NUM_WORDS = {1: "one", 2: "two", 3: "three", 4: "four"}
+
+
+def camera_content(camera_paths: dict, num_frames: int, min_pixels: int, max_pixels: int) -> list:
+    """user content 里相机部分（开头介绍 + 3 路 video）。
+
+    camera_paths[cam] 是该路 4 帧的完整路径（旧→新）；取最后 num_frames 帧，当前帧一定在。
+    """
+    if num_frames not in _NUM_WORDS:
+        raise ValueError(f"model.video.num_frames 只能是 1-4，收到 {num_frames}")
+    content = [{"type": "text", "text": CAMERA_INTRO}]
+    for cam, ordinal, view in _CAMERAS:
+        frames = camera_paths[cam][-num_frames:]
+        if num_frames == 1:
+            desc = (f"The {ordinal} video presents the {view} view of the vehicle, "
+                    f"comprising only the current frame.")
+        else:
+            desc = (f"The {ordinal} video presents the {view} view of the vehicle, "
+                    f"comprising {_NUM_WORDS[num_frames]} sequential frames sampled at 2 Hz.")
+        content.append({"type": "text", "text": desc})
+        content.append({"type": "video", "min_pixels": min_pixels, "max_pixels": max_pixels,
+                        "video": [f"file://{p}" for p in frames]})
+    return content
+
+
 def system_text(using_cot: bool) -> str:
     return SYSTEM_COT if using_cot else SYSTEM_NOCOT
 

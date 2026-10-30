@@ -79,7 +79,9 @@ class SFTDataset(Dataset):
         #     cot_ratio: 1.0, cot_in_prompt_ratio: 0.0   → 全部 reason_then_act（消融）
         self.cot_ratio = float(model_config.get('cot_ratio', 0.75))
         self.cot_in_prompt_ratio = float(model_config.get('cot_in_prompt_ratio', 0.18))
-        
+        # [mh 2026-10-05] 每路相机用最后几帧（1-4），默认 4 = 原行为。见 prompt_spec.camera_content
+        self.num_frames = int(model_config.get('video', {}).get('num_frames', 4))
+
         trajectory_sampling = TrajectorySampling(time_horizon=model_config['trajectory']['time_horizon'], 
                                                 interval_length=model_config['trajectory']['interval_length'])
         # Use first sensor_data_path for agent init (will be overridden per-scene)
@@ -210,11 +212,7 @@ class SFTDataset(Dataset):
                         os.path.join(input_features['sensor_data_path'], img))
                 else:
                     camera_images[camera_type].append(img)
-
-        # Assign to individual variables for message formatting
-        front_camera_1, front_camera_2, front_camera_3, front_camera_4 = camera_images['front_camera']
-        front_left_camera_1, front_left_camera_2, front_left_camera_3, front_left_camera_4 = camera_images['front_left_camera']
-        front_right_camera_1, front_right_camera_2, front_right_camera_3, front_right_camera_4 = camera_images['front_right_camera']
+        # 4 帧都留着，取最后 self.num_frames 帧在 prompt_spec.camera_content 里做
 
         # vehicle state
         velocity = input_features["vehicle_velocity"]
@@ -352,58 +350,10 @@ class SFTDataset(Dataset):
                 exit()
 
 
-        user_content = [
-            {
-                "type": "text",
-                "text": (
-                    "The autonomous vehicle is equipped with three cameras mounted at the front, left, and right, enabling a comprehensive perception of the surrounding environment."
-                )
-            },
-            {
-                "type": "text",
-                "text": "The first video presents the front view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": self.min_pixels,
-                "max_pixels": self.max_pixels,
-                "video": [
-                    f"file://{front_camera_1}",
-                    f"file://{front_camera_2}",
-                    f"file://{front_camera_3}",
-                    f"file://{front_camera_4}",
-                ]
-            },
-            {
-                "type": "text",
-                "text": "The second video presents the front-left view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": self.min_pixels,
-                "max_pixels": self.max_pixels,
-                "video": [
-                    f"file://{front_left_camera_1}",
-                    f"file://{front_left_camera_2}",
-                    f"file://{front_left_camera_3}",
-                    f"file://{front_left_camera_4}",
-                ]
-            },
-            {
-                "type": "text",
-                "text": "The third video presents the front-right view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": self.min_pixels,
-                "max_pixels": self.max_pixels,
-                "video": [
-                    f"file://{front_right_camera_1}",
-                    f"file://{front_right_camera_2}",
-                    f"file://{front_right_camera_3}",
-                    f"file://{front_right_camera_4}",
-                ]
-            },
+        # 相机部分（介绍 + 3 路 video）统一由 prompt_spec 拼，推理侧 models/autovla.py::get_prompt 用同一个函数。
+        # min/max_pixels 读 config 的 model.video（见 __init__，没写时仍是 28*28*128，与改动前一致）。
+        user_content = prompt_spec.camera_content(
+            camera_images, self.num_frames, min_pixels=self.min_pixels, max_pixels=self.max_pixels) + [
             {
                 "type": "text",
                 "text": prompt_spec.user_text(

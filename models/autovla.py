@@ -1,5 +1,6 @@
 import torch
 import os
+import math
 from tqdm import tqdm
 from typing import Dict, Any
 import pytorch_lightning as pl
@@ -863,21 +864,48 @@ class SFTAutoVLA(pl.LightningModule):
         lr_step_freq = self.cfg['training']['lr_step_frequency']
         lr_step_gamma = self.cfg['training']['lr_step_gamma']
 
-        def lr_update(step, warmup_step, step_size, gamma):
-            if step < warmup_step:
-                # warm up lr
-                lr_scale = 1 - (warmup_step - step) / warmup_step * 0.95
-            else:
-                n = (step - warmup_step) // step_size
-                lr_scale = gamma ** n
+######################################################### 修改这里 #########################################################
+        # [mh 2026/10/01] 可选 cosine 衰减。原来的 step decay（每 lr_step_frequency 步 ×gamma）
+        # 在 navtrain 101k / global batch 32 / 6 epoch（≈1.9 万步）下只从 2e-5 降到 1.67e-5，
+        # 等于常数 LR，没有退火阶段（见 0926_tiger 8n run 的 metrics.csv）。
+        #   lr_schedule: 'step'(默认，原行为不变) | 'cosine'
+        #   lr_min_ratio: cosine 末端 lr = 峰值 × lr_min_ratio（默认 0）
+        # warmup 与原来完全一致。cosine 下 lr_step_frequency / lr_step_gamma 不用（但上面仍会读）。
+        # 总步数用 Lightning 的 estimated_stepping_batches
+        # （= ceil(每 rank batch 数 / accumulate) × max_epochs），换节点数/accum/epochs 自动跟着变。
+        lr_schedule = str(self.cfg['training'].get('lr_schedule', 'step')).lower()
+        if lr_schedule == 'cosine':
+            lr_min_ratio = float(self.cfg['training'].get('lr_min_ratio', 0.0))
+            total_steps = int(self.trainer.estimated_stepping_batches)
 
-            if lr_scale < 1e-2:
-                lr_scale = 1e-2
-            elif lr_scale > 1:
-                lr_scale = 1
+            def lr_update(step, warmup_step, step_size, gamma):
+                if step < warmup_step:
+                    # warm up lr
+                    return 1 - (warmup_step - step) / warmup_step * 0.95
+                p = min(1.0, (step - warmup_step) / max(1, total_steps - warmup_step))
+                return lr_min_ratio + (1 - lr_min_ratio) * 0.5 * (1 + math.cos(math.pi * p))
 
-            return lr_scale
-        
+            print(f"[sched] cosine  warmup={lr_warmpup_step}  total_steps={total_steps}  "
+                  f"min_ratio={lr_min_ratio}")
+        elif lr_schedule == 'step':
+            def lr_update(step, warmup_step, step_size, gamma):
+                if step < warmup_step:
+                    # warm up lr
+                    lr_scale = 1 - (warmup_step - step) / warmup_step * 0.95
+                else:
+                    n = (step - warmup_step) // step_size
+                    lr_scale = gamma ** n
+
+                if lr_scale < 1e-2:
+                    lr_scale = 1e-2
+                elif lr_scale > 1:
+                    lr_scale = 1
+
+                return lr_scale
+        else:
+            raise ValueError(f"未知 training.lr_schedule={lr_schedule}；可选 step / cosine")
+######################################################### 修改这里 #########################################################
+
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
             lr_lambda=lambda step: lr_update(
@@ -961,8 +989,10 @@ class AutoVLA(torch.nn.Module):
         self.use_cot = config['model']['use_cot']
         self.gen_conf = config['inference']['sample']
 
-    def predict(self, input_features):
-        inputs = self.get_prompt(input_features)
+    def predict(self, input_features, **prompt_kwargs):
+        # [mh 2026-10-29] prompt_kwargs 原样传给 get_prompt（cot_mode / report / suggestion / prefill），
+        # 给 cf 开环评测用（tools/cf_data/eval_cf_openloop.py）。不传时与原行为完全一致。
+        inputs = self.get_prompt(input_features, **prompt_kwargs)
         model_inputs = {k: v.to(self.device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
         # --- mh 26-07-23: 噪声对照实验用的采样覆盖 ---
@@ -987,6 +1017,9 @@ class AutoVLA(torch.nn.Module):
 
         outputs_trimmed = outputs_trimmed[0][:-1].cpu() # remove end token
         cot_results = self.processor.decode(outputs_trimmed)
+        # prefill 的前缀属于输入、不在 generate 的输出里，补回来才是完整回复
+        if prompt_kwargs.get("prefill"):
+            cot_results = prompt_kwargs["prefill"] + cot_results
         # # prefill 的前缀属于输入、不在 generate 的输出里，补回来才是完整回复 mh 2026/07/25 测试用的
         # if os.environ.get("AUTOVLA_FORCE_COT") and self.use_cot:
         #     cot_results = FORCE_COT_PREFIX + cot_results
@@ -1003,7 +1036,11 @@ class AutoVLA(torch.nn.Module):
 
         return trajectory, cot_results
     
-    def get_prompt(self, input_features, image_mode="video"):
+    def get_prompt(self, input_features, image_mode="video", cot_mode="reason_then_act",
+                   report="", suggestion="", prefill=""):
+        # [mh 2026-10-29] cot_mode / report / suggestion / prefill 都有默认值，默认 = 原行为。
+        #   cot_mode="counterfactual" + report + suggestion：cf 样本的 prompt（prompt_spec.user_text）
+        #   prefill：接在 assistant 回复开头（如 "<PLAN>STOP,STRAIGHT</PLAN>\n"），shortcut 检查用
         # image sensor
         images = input_features['images']
 
@@ -1027,10 +1064,7 @@ class AutoVLA(torch.nn.Module):
                 else:
                     camera_images[camera_type].append(img)
 
-        # Assign to individual variables for message formatting
-        front_camera_1, front_camera_2, front_camera_3, front_camera_4 = camera_images['front_camera']
-        front_left_camera_1, front_left_camera_2, front_left_camera_3, front_left_camera_4 = camera_images['front_left_camera']
-        front_right_camera_1, front_right_camera_2, front_right_camera_3, front_right_camera_4 = camera_images['front_right_camera']
+        # 4 帧都留着，取最后 num_frames 帧在 prompt_spec.camera_content 里做
 
 
         # vehicle state
@@ -1049,58 +1083,11 @@ class AutoVLA(torch.nn.Module):
 
         instruction = input_features["driving_command"].lower()
     
-        user_content = [
-            {
-                "type": "text",
-                "text": (
-                    "The autonomous vehicle is equipped with three cameras mounted at the front, left, and right, enabling a comprehensive perception of the surrounding environment."
-                )
-            },
-            {
-                "type": "text",
-                "text": "The first video presents the front view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": min_pixels,
-                "max_pixels": max_pixels,
-                "video": [
-                    f"file://{front_camera_1}",
-                    f"file://{front_camera_2}",
-                    f"file://{front_camera_3}",
-                    f"file://{front_camera_4}",
-                ]
-            },
-            {
-                "type": "text",
-                "text": "The second video presents the front-left view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": min_pixels,
-                "max_pixels": max_pixels,
-                "video": [
-                    f"file://{front_left_camera_1}",
-                    f"file://{front_left_camera_2}",
-                    f"file://{front_left_camera_3}",
-                    f"file://{front_left_camera_4}",
-                ]
-            },
-            {
-                "type": "text",
-                "text": "The third video presents the front-right view of the vehicle, comprising four sequential frames sampled at 2 Hz."
-            },
-            {
-                "type": "video",
-                "min_pixels": min_pixels,
-                "max_pixels": max_pixels,
-                "video": [
-                    f"file://{front_right_camera_1}",
-                    f"file://{front_right_camera_2}",
-                    f"file://{front_right_camera_3}",
-                    f"file://{front_right_camera_4}",
-                ]
-            },
+        # 相机部分（介绍 + 3 路 video）与 SFT 共用 prompt_spec.camera_content；
+        # 每路帧数 = model.video.num_frames（1-4，默认 4 = 原行为），训练/评测 config 必须一致。
+        num_frames = int(self.video_conf.get("num_frames", 4))
+        user_content = prompt_spec.camera_content(
+            camera_images, num_frames, min_pixels=min_pixels, max_pixels=max_pixels) + [
             {
                 "type": "text",
                 # 🔴 与 SFT 共用同一份文案（dataset_utils/prompt_spec.py）。
@@ -1109,7 +1096,7 @@ class AutoVLA(torch.nn.Module):
                 #    <PLAN>，模型必须先把它说出来。
                 "text": prompt_spec.user_text(
                     velocity, acceleration, instruction, self.use_cot,
-                    cot_mode="reason_then_act"),
+                    cot_mode=cot_mode, report=report, suggestion=suggestion),
             },
         ]
 
@@ -1135,6 +1122,9 @@ class AutoVLA(torch.nn.Module):
         # # 比改 system prompt 让它"必须推理"要干净得多。
         # if os.environ.get("AUTOVLA_FORCE_COT") and self.use_cot:
         #     text = text + FORCE_COT_PREFIX
+
+        if prefill:
+            text = text + prefill
 
         inputs = self.processor(
             text=[text],

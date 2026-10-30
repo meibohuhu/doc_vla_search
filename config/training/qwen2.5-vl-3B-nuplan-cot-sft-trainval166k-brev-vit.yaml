@@ -1,0 +1,110 @@
+name: qwen2.5-vl-3B-nuplan-cot-sft-trainval166k-brev
+description: >
+  CoT SFT on nuPlan navtrain (~101k), ViT frozen + LLM full-param。
+  与 qwen2.5-vl-3B-nuplan-nocot-sft-navtrain-brev 的**唯一差别**是 use_cot 和数据目录
+  (navtrain_nocot -> navtrain_cot)，其余超参逐字段对齐，好让 CoT/no-CoT 可比。
+  reasoning 数据的构建见 docs/0806/vcrd_flow_autovla.md，
+  采样机制见 docs/0901/sft_cot_sampling.md。
+
+model:
+  use_cot: true                     # ← 与 nocot 基线的唯一开关
+  # ── CoT 采样（simlingo 式三档，见 docs/0901/sft_cot_sampling.md）──────────
+  #   reason_then_act  0.75 x 0.82 = 61.5%  prompt "Explain your reasoning first."
+  #                                          target <think>{cot}</think><answer>
+  #   reasoning_given  0.75 x 0.18 = 13.5%  reasoning 给在 prompt 里，target 只有 <answer>
+  #   act_directly                   25.0%  prompt "Answer directly."，target 只有 <answer>
+  #
+  # ⚠️ 三档必须共存。只留 reason_then_act 的话没有对照；去掉 reasoning_given 的话
+  #    waypoint head 会把 reasoning 整条旁路掉（simlingo 上实测），
+  #    "improving reasoning benefits trajectory" 就没法验证。
+  # 消融:全推理 -> cot_ratio 1.0 + cot_in_prompt_ratio 0.0
+  cot_ratio: 0.75
+  cot_in_prompt_ratio: 0.0
+  # [tigris] 模型放 /shared（/home 只剩 76G，且 checkpoint 都在 /shared）
+  pretrained_model_path: /shared/rc/llm-gen-agent/mhu/auto_vla/Qwen2.5-VL-3B-Instruct
+  # [mh 2026-09-04] ViT 解冻。ViT 相关设置对齐 gcis 上跑过的那次消融实验:
+  #   config/training/qwen2.5-vl-3B-nuplan-nocot-sft-vit-unfreeze.yaml
+  #   ("Use in gcis-zxtics-rl unfreeze ViT, 2GPU, 100k")
+  # 该参考同样是 train_vision_backbone: true 且**不设** vision_learning_rate,
+  # 即 ViT 与 LLM 共用主 lr 2e-5 —— 这里保持一致，故本文件也不设该字段。
+  #
+  # 开 true 后代码自动多做两件事:
+  #   1. run_sft.py 给 vision tower 单独开 gradient checkpointing
+  #      （不开的话每样本 12 张图的激活都留着，显存会爆）
+  #   2. autovla.py 把 ViT 拆成独立 param group，lr 取
+  #      training.vision_learning_rate，未设时回退到主 lr（即本例的 2e-5）
+  train_vision_backbone: true       # ViT 解冻（全参）
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-cot-sft-166k
+  # [tigris 2026-09-04] checkpoint / 日志的输出根目录。
+  # 必须放 /shared：3.75B fp32 的 ckpt 约 15GB/个 x save_top_k 3 = ~45GB，
+  # 而 /home 是 256G 配额、只剩 76G。/shared 还有 1.2T。
+  # 实际路径 = <output_root>/sft/<启动时间戳>/
+  # 不写这个字段时默认 "runs"（仓库内相对路径，即原行为）。
+  output_root: /shared/rc/llm-gen-agent/mhu/auto_vla/runs
+  strategy: ddp                     # 3B 单卡放得下，DDP 比 FSDP 快（每步只 all-reduce 一次）
+  # [mh 2026/07/24] fp32 master weights —— 见 docs/0724/bf16_master_weights_bug.md。
+  # 不加这个（或设 false）会退回 bf16-true：lr=2e-5 的更新被舍入成 0，74% 参数不动，
+  # 训练静默失效（action top1 卡在 16%）。默认 True，这里显式写出以防误改。
+  fp32_master: true
+  # ⚠️ fp32 master 显存翻倍。CoT 样本的 target 比 no-CoT 长（reasoning p50=32 token，
+  #    reasoning_given 那一档还会把它塞进 prompt），序列更长 -> 显存更紧，
+  #    所以沿用 batch_size=1，不要试图调大。
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null           # 用完整 navtrain
+  # ⚠️ global batch = batch_size x accum x GPU 数 = 1 x 8 x 4 = 32，
+  #    与 no-CoT 基线严格一致。换 GPU 数就必须同步改 accum，
+  #    否则 CoT/no-CoT 的比较里混进一个 batch size 的混杂因子。
+  #    启动脚本会强制检查这一点。
+  accumulate_grad_batches: 8
+  # [tigris] GH200 每节点只有 1 张卡，多卡 = 多节点。num_nodes x 每节点 1 卡 = 总卡数。
+  # 冒烟测试用 1：2 节点在 tigris 上排队要等 ~2 天（PENDING 483 个，Slurm 估
+  # 9/5 21:04 才起），1 节点好调度得多。正式跑要凑回 global batch 32，
+  # 见启动脚本末尾的配平方案。
+  num_nodes: 1
+
+# [tigris 2026-09-03] 数据根从 /data/autovla_data 换成
+#   /shared/rc/llm-gen-agent/mhu/auto_vla（本机没有 /data/autovla_data）。
+# ⚠️ JSON 里 8 路相机存的是**绝对路径**，光改这里不够 —— 那些 JSON 本身
+#    也已经批量改写过（/data/autovla_data/nuplan -> 下面这个根）。
+#    sensor_data_path 保持 null 正是因为 JSON 已是绝对路径。
+data:
+  train:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/trainval_cot_166k
+    sensor_data_path: null
+  val:
+    # navtrain_cot_val = navtrain_nocot_val(2000，与 train 不重叠)灌进 reasoning 后的版本。
+    # 覆盖率 1977/2000 = 98.8%，缺的 23 条是 log 首尾凑不出 14 帧窗口，cot_output 保持原样。
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/trainval_cot_166k_val
+    sensor_data_path: null
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

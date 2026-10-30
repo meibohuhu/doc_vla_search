@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -131,7 +132,22 @@ if __name__ == "__main__":
     )
 
     current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    save_dir = f"runs/sft/{current_date}"
+######################################################### 修改这里 #########################################################
+    # [mh 2026-09-04] 输出根目录改成可配置（原来写死 "runs/"，即仓库内的相对路径）。
+    # 动机：3.75B 参数 fp32 的 checkpoint 约 15GB/个，config 是 save_top_k: 3
+    # -> 约 45GB。而 tigris 上 /home 是 256G 配额（已用 181G，只剩 76G），
+    # 放三个 checkpoint 就见底了；万一 save_weights_only 失效（连 optimizer 状态
+    # 一起存就是 3 倍），直接爆配额、训练崩在最后一步。
+    # 数据和模型都在 /shared（1.2T 余量），checkpoint 也该放那儿。
+    #
+    # 优先级：环境变量 AUTOVLA_OUTPUT_ROOT > config training.output_root > "runs"
+    # 默认值保持 "runs"，所以不配置时行为和原来完全一致。
+    output_root = os.environ.get("AUTOVLA_OUTPUT_ROOT",
+                                 config['training'].get('output_root', 'runs'))
+    save_dir = f"{output_root}/sft/{current_date}"
+    os.makedirs(save_dir, exist_ok=True)
+    print(f"[output] save_dir = {os.path.abspath(save_dir)}")
+######################################################### 修改这里 #########################################################
 
 ######################################################### 修改这里 #########################################################
     # [mh 2026/07/22] 原版写死 FSDP，这里改成由 config 的 training.strategy 选择（默认仍是 fsdp）。
@@ -229,8 +245,33 @@ if __name__ == "__main__":
             config=config,          # log the full run config for comparability
         ))
 
+    # [mh 2026-09-03] num_nodes 原本写死 1。tigris(RIT RC) 的 GH200 节点
+    # **每个只有 1 张卡**(Gres=gpu:gh200:1)，所以要多卡就必须跨节点 —— 写死 1
+    # 的话 Lightning 会把每个节点当成独立的单卡任务，两边各训各的、不做 all-reduce。
+    # 由 config 的 training.num_nodes 指定，默认仍是 1（单机行为不变）。
+    # 配合 srun + MASTER_ADDR/MASTER_PORT 使用，见 logs/0903_tiger/run_cot_sft_166k_0903_vit.sh
+    # 允许用环境变量覆盖（启动脚本里设成 $SLURM_NNODES）。这样 num_nodes 永远等于
+    # Slurm 实际分配的节点数，不可能和 sbatch 的 --nodes 对不上 —— 对不上时 Lightning
+    # 会卡在 rendezvous 或者更糟：各节点各训各的、不做 all-reduce。
+    # 没设这个环境变量时退回 config，单机行为不变。
+    num_nodes = int(os.environ.get("AUTOVLA_NUM_NODES",
+                                   config['training'].get('num_nodes', 1)))
+    # [mh 2026-10-29] 选 ckpt / early stop 看哪个指标：training.ckpt_monitor（默认 val_loss = 原行为）。
+    #   val_loss 按 token 平均，CoT / cf 训练里 val 每个 epoch 随机抽模式（reason_then_act / act_directly /
+    #   cf），动作 token 占比在 epoch 间浮动（2026-10-28 那跑 21.7%–25.9%），val_loss 跟着 ±0.1 抖，
+    #   和模型好坏无关。轨迹只取决于动作 token → CoT / cf 训练建议设 ckpt_monitor: val_action_loss。
+    #   ckpt_mode: min（默认）/ max（如 val_action_top1）。
+    #   默认 val_loss 时文件名不变（epoch=E-loss=X.ckpt）；其他指标文件名带上指标名。
+    ckpt_monitor = config['training'].get('ckpt_monitor', 'val_loss')
+    ckpt_mode = config['training'].get('ckpt_mode', 'min')
+    if ckpt_monitor not in ('val_loss', 'val_action_loss', 'val_action_top1', 'val_text_loss'):
+        raise ValueError(f"training.ckpt_monitor={ckpt_monitor} 不是 validation_step 里 log 的指标")
+    ckpt_filename = ("epoch={epoch}-loss={val_loss:.4f}" if ckpt_monitor == 'val_loss'
+                     else f"epoch={{epoch}}-{ckpt_monitor}={{{ckpt_monitor}:.4f}}")
+    print(f"[ckpt] monitor={ckpt_monitor} mode={ckpt_mode} filename={ckpt_filename}")
+
     trainer = pl.Trainer(
-        num_nodes=1,
+        num_nodes=num_nodes,
         max_epochs=config['training']['epochs'],
         accelerator="gpu",
         devices='auto',
@@ -239,16 +280,16 @@ if __name__ == "__main__":
         strategy=strategy,
         callbacks=[
             ModelCheckpoint(
-                monitor="val_loss",
-                mode="min",
+                monitor=ckpt_monitor,
+                mode=ckpt_mode,
                 save_top_k=3,
                 dirpath=f"{save_dir}",
-                filename="epoch={epoch}-loss={val_loss:.4f}",
+                filename=ckpt_filename,
                 auto_insert_metric_name=False,
                 save_weights_only=True,
                 every_n_epochs=1,
             ),
-            EarlyStopping(monitor="val_loss", patience=10, mode="min"),
+            EarlyStopping(monitor=ckpt_monitor, patience=10, mode=ckpt_mode),
             LearningRateMonitor(logging_interval="step"),
         ],
         gradient_clip_algorithm = 'value',

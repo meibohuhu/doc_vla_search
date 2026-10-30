@@ -1,0 +1,11 @@
+=== nvidia-smi ===
+name, memory.total [MiB], compute_cap, driver_version
+NVIDIA GH200 480GB, 97871 MiB, 9.0, 610.43.02
+=== torch ===
+name        : NVIDIA GH200 480GB
+HBM 显存    : 95.0 GiB (97280 MiB)
+SM 数量     : 132
+compute cap : 9.0
+=== 节点 CPU 侧内存 (Grace LPDDR5X) ===
+               total        used        free      shared  buff/cache   available
+Mem:             572         255         330           0          12         317

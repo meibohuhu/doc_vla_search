@@ -1,0 +1,26 @@
+==================================================================
+ NCCL 跨节点验证  job=117964
+ 节点   : gh-a-[001,006]  (2 节点 x 1 卡)
+ master : gh-a-001:37964
+==================================================================
+[rank 0/2] host=gh-a-001.rc.rit.edu gpu=NVIDIA GH200 480GB torch=2.5.1 cuda=12.4 nccl=(2, 21, 5)
+[rank 1/2] host=gh-a-006.rc.rit.edu gpu=NVIDIA GH200 480GB torch=2.5.1 cuda=12.4 nccl=(2, 21, 5)
+
+[init] process group 建立成功，用时 0.1s
+[检查1] world_size=2  hosts=['gh-a-001.rc.rit.edu', 'gh-a-006.rc.rit.edu']
+         OK: 确实跨 2 台主机
+[检查2] all_reduce SUM: got=1.0 expect=1.0 全元素一致=True
+         OK: all-reduce 数值正确（说明梯度真的会被聚合）
+[检查3] broadcast 各 rank 收到正确数据: [True, True]
+         OK
+[检查4] all-reduce 带宽:
+           16 MB :    0.72 ms/次   busbw  21.59 GB/s
+          128 MB :    4.96 ms/次   busbw  25.20 GB/s
+          512 MB :   19.76 ms/次   busbw  25.30 GB/s
+
+==================================================================
+ ✅ 跨节点 NCCL 全部通过 —— 多节点 DDP 可用
+    (梯度 all-reduce 数值已验证，不是'没报错'就算过)
+==================================================================
+
+exit code: 0  (0 = 通信正常)

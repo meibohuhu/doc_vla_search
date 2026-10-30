@@ -1,0 +1,83 @@
+name: qwen2.5-vl-3B-nuplan-cf018-cot-sft-navtrain-vit-unfreeze-tigris8n
+description: >
+  = 1028_tiger/qwen2.5-vl-3B-nuplan-cf-cot-sft-navtrain-vit-unfreeze-tigris8n，只把 model.cf.ratio 0.25 -> 0.18。
+  = config/training/1026/qwen2.5-vl-3B-nuplan-cf-sft-navtrain 的 ViT 解冻版，跑在 tigris GH200 8 节点。
+  反事实指令 SFT（docs/1026/cf_sft_autovla_plan.md）。从 Qwen2.5-VL-3B 基座重新训，ViT 解冻 + LLM 全参。
+  普通样本（82%）和 0916_nvidia/qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev 完全一样；
+  cf 样本（18%）在 prompt 末尾加 "Scene report: … Suggested action: …."，答案只有 <PLAN> 和动作。
+  和 1026 那版只差：train_vision_backbone true；optimizer adamw8bit；路径换成 /shared；accum 16 -> 4（8 卡）；
+  output_root/num_nodes。adamw8bit 和 tigris 上其他 ViT 解冻的跑一致（普通 adamw 实测 82GiB/95GiB，余量太小）。
+
+model:
+  use_cot: true
+  cot_ratio: 0.75                   # 普通样本里 reason_then_act / act_directly 的比例，和 103k CoT 基线一样
+  cot_in_prompt_ratio: 0.0
+  # ── 反事实指令样本（§2、§4 C2）────────────────────────────────────────────
+  cf:
+    ratio: 0.18                     # 每条样本以这个概率换成 cf 样本（25% 那版的对照）
+    decouple_ratio: 0.1             # cf 样本里，suggestion 换成别的动作、只训 action token 的比例
+    # 照做样本的类别比例（KEEP 不当 suggestion，不能放这里）。换道的池子只有 ~2.9k 条，
+    # 18% cf × 25% 换道 ≈ 每 epoch 4.6k 条，每条约重复 1.6 次。
+    type_probs: {STOP: 0.25, DECELERATE: 0.25, ACCELERATE: 0.25, LANE_LEFT: 0.125, LANE_RIGHT: 0.125}
+    # 解耦样本的类别比例；KEEP 只出现在这里
+    decouple_type_probs: {STOP: 0.2, DECELERATE: 0.2, KEEP: 0.2, ACCELERATE: 0.2, LANE_LEFT: 0.1, LANE_RIGHT: 0.1}
+  # [tigris] 模型放 /shared（/home 配额紧）
+  pretrained_model_path: /shared/rc/llm-gen-agent/mhu/auto_vla/Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: true       # ★ ViT 解冻（1026 那版是 false）
+  train_lm_backbone: true
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:                            # 训练现在也读这里（§4 C4），和推理一致
+    min_pixels: 109760
+    max_pixels: 109760
+
+training:
+  logger: wandb
+  wandb_project: autovla-cf-sft
+  # [tigris] ckpt 放 /shared：实际路径 = <output_root>/sft/<启动时间戳>/
+  output_root: /shared/rc/llm-gen-agent/mhu/auto_vla/runs
+  strategy: ddp
+  fp32_master: true                 # 不能关，见 docs/0724/bf16_master_weights_bug.md
+  optimizer: adamw8bit              # 优化器状态 28GB -> 7GB，见 models/autovla.py configure_optimizers
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null
+  # global batch = batch_size × accum × GPU 数，保持 32（和 103k CoT 基线一致）。换节点数要同步改。
+  accumulate_grad_batches: 4        # 8 节点 x 1 卡: 1 x 4 x 8 = 32
+  num_nodes: 8                      # 启动脚本还会用 AUTOVLA_NUM_NODES 覆盖成实际节点数
+  # 选 ckpt / early stop 看 val_action_loss（tools/run_sft.py）：val_loss 按 token 平均，
+  # val 每个 epoch 随机抽 CoT / cf 模式，动作 token 占比在变，val_loss 会无规律地抖。
+  ckpt_monitor: val_action_loss
+
+data:
+  # navtrain_cot 的 camera 路径是相对路径（trainval/...），由 sensor_data_path 拼成绝对路径
+  train:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot
+    sensor_data_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+    cf_index: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/cf_navtrain_v1/cf_navtrain_v1_train.npz
+  val:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot_val
+    sensor_data_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+    cf_index: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/cf_navtrain_v1/cf_navtrain_v1_val.npz
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0
