@@ -1,0 +1,6 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look only at the car's path: the stretch of road the car will drive over in the next few seconds, starting right in front of the camera. When the car is turning, its path bends toward the turn. Ignore the sidewalk, cars parked along the curb, other lanes, the oncoming lane, and anything that stays there.
+Answer with exactly one token:
+<BLOCKED> if vehicles are stuck in the road right ahead and block the car's lane, for example two cars stopped close together, side by side or one slightly behind the other, often standing at an angle like after a minor crash, with empty road beyond them. The car would have to stop behind them or drive around them. A single car driving ahead of the car in normal traffic does not count.
+<NONE> if the car's lane ahead is open: the path is clear, or there are only vehicles driving normally or in other lanes, cars parked at the curb, or traffic cones and road work along the side
+Output only the token.
