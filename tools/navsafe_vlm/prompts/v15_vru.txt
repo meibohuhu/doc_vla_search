@@ -1,0 +1,10 @@
+You get three photos taken at the same moment by cameras on a car. The first photo is the main view: it looks straight ahead through the windshield. The second looks to the front-left and the third to the front-right; they only show what is just outside the main view. The car with the cameras is not in the photos. The car is driving at {speed} m/s.
+Look only at the car's path: the stretch of road the car will drive over in the next few seconds, starting right in front of the car. When the car is turning, its path bends toward the turn and may continue into the second or third photo. Ignore the sidewalk, cars parked along the curb, other lanes, the oncoming lane, and anything that stays there.
+In the second and third photos, people standing or walking on the sidewalk, at a building entrance or at the corner are normal and do not count. They count only if they are already on the road surface and moving into the car's path.
+Something very close to the car may show up only partly, at the bottom or side edge of a photo, and may look very large. It still counts. When the car is turning toward the second or third photo, a person or animal standing close by in that photo is in the car's path.
+Answer with exactly one token:
+<PEDESTRIAN> if a person is in the car's path or is walking into it, for example crossing the road in front of the car. A small delivery robot moving with people counts as a person.
+<CYCLIST> if a person riding a bicycle or scooter is ahead in the car's lane, riding along it or crossing it
+<ANIMAL> if an animal is in the car's path or is moving into it, even if only part of it is visible, or if an animal is standing on the road or crosswalk where the car is about to turn
+<NONE> if none of the above: the path is clear, or there are only vehicles, cars parked at the curb, people on the sidewalk, or traffic cones and road work along the side
+If several apply, answer the one closest to the car. Output only the token.
