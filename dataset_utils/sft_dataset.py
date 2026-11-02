@@ -88,7 +88,8 @@ class SFTDataset(Dataset):
         nuplan_agent = AutoVLAAgent(trajectory_sampling=trajectory_sampling,
                                     sensor_data_path=self.sensor_data_paths[0],
                                    codebook_cache_path=model_config['codebook_cache_path'],
-                                   skip_model_load=True)
+                                   skip_model_load=True,
+                                   nuplan_side_cams=(model_config.get('video') or {}).get('nuplan_side_cams', 'L1R1'))
 
         self._agent = nuplan_agent
         

@@ -231,9 +231,17 @@ class TokenProcessor(torch.nn.Module):
 class AutoVLAAgentFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder of AutoVLA Agent."""
 
-    def __init__(self, sensor_data_path: Optional[str] = None):
+    def __init__(self, sensor_data_path: Optional[str] = None, nuplan_side_cams: str = "L1R1"):
         """Initializes the feature builder."""
         self.sensor_data_path = sensor_data_path
+        # [mh 2026-10-30] nuPlan 的"左前/右前"两路喂哪组相机：model.video.nuplan_side_cams
+        #   L1R1（默认，原行为）：left/right_camera_paths = CAM_L1 / CAM_R1（车身两侧）
+        #   L0R0              ：front_left/right_camera_paths = CAM_L0 / CAM_R0（真正的左前/右前）
+        #   prompt 里写的是 "front-left / front-right view"，L0R0 才和文案对得上。
+        #   本地 JSON 两组路径都存了、图也都在（2026-10-30 抽查），换组不用重新预处理。
+        if nuplan_side_cams not in ("L1R1", "L0R0"):
+            raise ValueError(f"model.video.nuplan_side_cams 只能是 L1R1 / L0R0，收到 {nuplan_side_cams}")
+        self.nuplan_side_cams = nuplan_side_cams
 
     def get_unique_name(self) -> str:
         """Inherited, see superclass."""
@@ -255,7 +263,7 @@ class AutoVLAAgentFeatureBuilder(AbstractFeatureBuilder):
         
         # Normalize camera names across datasets
         # NuPlan uses left/right_camera, others use front_left/right_camera
-        if dataset_name == 'nuplan':
+        if dataset_name == 'nuplan' and self.nuplan_side_cams == "L1R1":
             front_left_cam = scene_data.get('left_camera_paths')
             front_right_cam = scene_data.get('right_camera_paths')
         else:
@@ -336,7 +344,8 @@ class AutoVLAAgent(AbstractAgent):
         lora_conf: Optional[str] = None,
         config_path: Optional[str] = None,
         device: str = 'cuda',  # Default to CUDA if available
-        skip_model_load: bool = False
+        skip_model_load: bool = False,
+        nuplan_side_cams: Optional[str] = None,
     ):
         """
         Initializes the agent interface for AutoVLA.
@@ -370,6 +379,10 @@ class AutoVLAAgent(AbstractAgent):
         
         self.sensor_data_path = sensor_data_path
         self.lora_conf = lora_conf
+        # 显式传入 > config_path 里的 model.video.nuplan_side_cams > 默认 L1R1（原行为）
+        if nuplan_side_cams is None and config is not None:
+            nuplan_side_cams = (config.get('model', {}).get('video') or {}).get('nuplan_side_cams')
+        self.nuplan_side_cams = nuplan_side_cams or "L1R1"
 
 
     def initialize(self) -> None:
@@ -415,7 +428,8 @@ class AutoVLAAgent(AbstractAgent):
 
     def get_feature_builders(self) -> List[AbstractFeatureBuilder]:
         """Inherited, see superclass."""
-        return [AutoVLAAgentFeatureBuilder(sensor_data_path=self.sensor_data_path)]
+        return [AutoVLAAgentFeatureBuilder(sensor_data_path=self.sensor_data_path,
+                                           nuplan_side_cams=self.nuplan_side_cams)]
     
     def compute_trajectory(self, scene_data) -> Trajectory:
         """
