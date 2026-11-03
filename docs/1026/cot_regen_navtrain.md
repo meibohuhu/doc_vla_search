@@ -8,19 +8,19 @@
 
 ## 代码
 
-在 Impromptu-VLA 仓库（`/home/mh2803/vla/Impromptu-VLA`，原版也在这个位置）：
+本仓库 `tools/cot_data/`（11-03 从 Impromptu-VLA 拷过来；那边的两份是未跟踪文件，以这里为准）：
 
-- `data_qa_generate/data_engine/datasets/navsim/build_navsim_cot.py`：读 `navsim_logs` 和地图，输出 `{token: cot}`。规则写在文件头。
-- `data_qa_generate/data_engine/datasets/navsim/merge_cot_into_samples.py`：灌进样本 JSON 的 `cot_output`，相机路径改成相对 `sensor_blobs/`。
+- `tools/cot_data/build_navsim_cot.py`：读 `navsim_logs` 和地图，输出 `{token: cot}`。规则写在文件头。不读图片。
+- `tools/cot_data/merge_cot_into_samples.py`：灌进样本 JSON 的 `cot_output`，相机路径改成相对 `sensor_blobs/`。
 
-`<PLAN>` 用 `doc_vla_search` 的 `plan_from_track`（和训练侧同一个函数），所以需要 `DOC_VLA_REPO` 指向本仓库（默认 `/home/mh2803/vla/doc_vla_search`）。
+`<PLAN>` 用本仓库的 `plan_from_track`（和训练侧同一个函数），按文件位置找仓库根目录引入。拷过来后在 val 上重跑，2,000 条和原来生成的逐字一致。
 
 ```bash
+cd /home/mh2803/vla/doc_vla_search
 conda activate autovla_codeclean
-export PYTHONPATH=/home/mh2803/vla/doc_vla_search/navsim NUPLAN_MAPS_ROOT=/scratch/mh2803/vla/nuplan/maps NUPLAN_MAP_VERSION=nuplan-maps-v1.0
-cd /home/mh2803/vla/Impromptu-VLA/data_qa_generate/data_engine/datasets/navsim
-python build_navsim_cot.py --json_dir /scratch/mh2803/vla/nuplan/navtrain_nocot --out cot_navtrain.json --workers 68
-python merge_cot_into_samples.py --src /scratch/mh2803/vla/nuplan/navtrain_nocot --cot cot_navtrain.json \
+export PYTHONPATH=$PWD/navsim NUPLAN_MAPS_ROOT=/scratch/mh2803/vla/nuplan/maps NUPLAN_MAP_VERSION=nuplan-maps-v1.0
+python tools/cot_data/build_navsim_cot.py --json_dir /scratch/mh2803/vla/nuplan/navtrain_nocot --out cot_navtrain.json --workers 68
+python tools/cot_data/merge_cot_into_samples.py --src /scratch/mh2803/vla/nuplan/navtrain_nocot --cot cot_navtrain.json \
     --dst /scratch/mh2803/vla/nuplan/navtrain_cot --sensor_root /scratch/mh2803/vla/nuplan/sensor_blobs
 ```
 

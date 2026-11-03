@@ -195,10 +195,9 @@ python -m dataset_utils.sft_dataset --config training/1026/qwen2.5-vl-3B-nuplan-
 
 # 本机两卡调试（默认 GPU 1,2）
 bash scripts/1027/run_cf_sft_debug_2gpu.sh
-
-# 本机跑正式配置
-CONFIG=training/1026/qwen2.5-vl-3B-nuplan-cf-sft-navtrain bash scripts/1027/run_cf_sft_debug_2gpu.sh
 ```
+
+正式配置（`…-cf-sft-navtrain.yaml`）的数据路径是 tigris 的，本机跑不了；本机只用 debug 配置。
 
 本机注意：
 - 两卡必须同时设 `NCCL_P2P_DISABLE=1` 和 `NCCL_SHM_DISABLE=1`，脚本里已经设了。
@@ -206,7 +205,7 @@ CONFIG=training/1026/qwen2.5-vl-3B-nuplan-cf-sft-navtrain bash scripts/1027/run_
 
 ## 上 cluster 之前
 
-- **路径**：改 `data.train/val` 三个路径（`json_dataset_path`、`sensor_data_path`、`cf_index`）。`sensor_data_path` 设成 cluster 上的 `sensor_blobs`。
+- **路径**（10-28 已改）：正式配置的 `data` 段已经是 tigris 的 `/shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/…`，`sensor_data_path` 指到它下面的 `sensor_blobs`。数据用 `scripts/1028/rsync_cf_data_to_tigris.sh` 传过去（约 830 MB，传完自动对文件数和 npz 的 md5）。
 - **基座权重**：在 cluster 的仓库里放好 `./Qwen2.5-VL-3B-Instruct`，它不在 git 里。
 - **要搬过去的数据**：
   - `navtrain_cot` 和 `navtrain_cot_val`（JSON）；

@@ -110,7 +110,7 @@ target: <PLAN>STOP,STRAIGHT</PLAN>\n<answer>[停车轨迹]</answer>
 
 ### D0. 合并 CoT 数据
 
-- **2026-10-27 已做，改成重新生成**：103k 的 CoT 和生成器都只在 brev 上，丢了。照 HF 上 166k CoT 的输出反推规则，在 Impromptu-VLA 里重写了 `build_navsim_cot.py` 和 `merge_cot_into_samples.py`。反推不出来的三类（切入、停车标志、前方放空）按用户选的方案 B 重新定义。输出 `/scratch/mh2803/vla/nuplan/navtrain_cot`（101,288 条，有 CoT 100,222 条，和老版条数完全一样）和 `navtrain_cot_val`（2,000 条）。相机路径已是相对路径。详见 [cot_regen_navtrain.md](cot_regen_navtrain.md)。
+- **2026-10-27 已做，改成重新生成**：103k 的 CoT 和生成器都只在 brev 上，丢了。照 HF 上 166k CoT 的输出反推规则，重写了 `build_navsim_cot.py` 和 `merge_cot_into_samples.py`（现在在本仓库 `tools/cot_data/`）。反推不出来的三类（切入、停车标志、前方放空）按用户选的方案 B 重新定义。输出 `/scratch/mh2803/vla/nuplan/navtrain_cot`（101,288 条，有 CoT 100,222 条，和老版条数完全一样）和 `navtrain_cot_val`（2,000 条）。相机路径已是相对路径。详见 [cot_regen_navtrain.md](cot_regen_navtrain.md)。
 - 原计划：按 token 把下载来的 `cot_output` 合并进本机的 `navtrain_nocot` / `navtrain_nocot_val`（文件名就是 `<token>.json`），输出 `navtrain_cot` / `navtrain_cot_val`。
 - **相机路径改成相对 `sensor_blobs/` 的相对路径**，各机器在 config 里设 `sensor_data_path`（`sft_dataset.py:142` 已经支持）。现在 JSON 里是本机的绝对路径，`os.path.join` 遇到绝对路径会丢掉前缀，放到 cluster 上会找不到图。
 - 检查：
