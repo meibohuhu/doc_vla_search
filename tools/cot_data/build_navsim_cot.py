@@ -285,18 +285,22 @@ def run_log(args):
 
 
 def main():
+    global LOG_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--json_dir", required=True, help="样本 JSON 目录（navtrain_nocot 等），决定生成哪些 token")
     ap.add_argument("--out", required=True, help="输出 {token: cot}")
     ap.add_argument("--workers", type=int, default=32)
     ap.add_argument("--limit_logs", type=int, default=0, help="只跑前 N 个 log（试跑用）")
+    ap.add_argument("--log_dir", default=LOG_DIR, help="navsim_logs/<split> 目录（navtest 用 navsim_logs/test）")
     args = ap.parse_args()
+    LOG_DIR = args.log_dir           # Pool 是 fork，worker 继承这个值
 
     t0 = time.time()
     by_log = defaultdict(dict)
     for f in os.listdir(args.json_dir):
         d = json.load(open(os.path.join(args.json_dir, f)))
-        log = d["front_camera_paths"][-1].split("/trainval/")[1].split("/")[0]
+        # 相机路径 .../<split>/<log>/CAM_F0/xxx.jpg（绝对或相对都行），取 <log>
+        log = d["front_camera_paths"][-1].split("/")[-3]
         by_log[log][d["token"]] = d["gt_trajectory"]
     logs = sorted(by_log)[:args.limit_logs or None]
     n_target = sum(len(by_log[l]) for l in logs)
