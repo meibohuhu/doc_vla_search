@@ -1,0 +1,44 @@
+# AutoVLA 环境 —— linux-aarch64 (GH200 / Grace-Hopper, neoverse_v2) 版
+#
+# 用法（推荐直接用脚本，它会把 torch 用独立 index 装对）:
+#   bash scripts/install_aarch64.sh
+#
+# 手动等价流程:
+#   conda env create -f environment_aarch64.yml
+#   conda activate auto_vla
+#   pip install --index-url https://download.pytorch.org/whl/cu124 \
+#       torch==2.5.1 torchvision==0.20.1        # ← 必须 --index-url，见下
+#   pip install -r requirements-aarch64.txt --no-warn-conflicts
+#   pip install -e . --no-warn-conflicts
+#   pip install -e navsim --no-warn-conflicts
+#
+# 与 environment.yml 的差异:
+#   1. name: autovla_codeclean → auto_vla
+#   2. 多装 4 个 conda-forge 包 —— 它们在 PyPI 的 cp39/aarch64 只有 sdist
+#      (现场编译 GDAL / Rust / OpenCV，慢且易失败)，conda-forge 的 linux-aarch64
+#      恰好有与 requirements.txt **完全相同**的版本号。
+#   3. pip 依赖指向 requirements-aarch64.txt(torch 栈改动，见该文件头注释)
+#
+# 详见 docs/0901/aarch64_gh200_env.md
+name: auto_vla
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.9
+  - pip>=23.3
+
+  - jupyterlab
+  - ipykernel
+  - notebook
+
+  - numpy=1.23.4
+
+  # PyPI cp39/aarch64 无 wheel → 从 conda-forge 装（版本同 requirements.txt）
+  - py-opencv=4.9.0        # ← opencv-python==4.9.0.80
+  - rasterio=1.3.11
+  - fiona=1.10.1
+  - safetensors=0.5.3
+
+  - pip:
+      - -r requirements-aarch64.txt
