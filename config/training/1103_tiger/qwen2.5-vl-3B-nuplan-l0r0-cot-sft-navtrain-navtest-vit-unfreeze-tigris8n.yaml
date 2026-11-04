@@ -1,0 +1,79 @@
+name: qwen2.5-vl-3B-nuplan-l0r0-cot-sft-navtrain-navtest-vit-unfreeze-tigris8n
+description: >
+  = 1028_tiger/qwen2.5-vl-3B-nuplan-l0r0-cot-sft-navtrain-vit-unfreeze-tigris8n（无 cf、L0R0），
+  只把 navtest_cot（12,146 条，tools/cot_data 按 navtrain 同一套规则生成）加进 train：
+  navtrain_cot 101,288 + navtest_cot 12,146 = 113,434。val 不变（navtrain_cot_val）。
+  ⚠️ 训过 navtest，这个 ckpt 的 navtest PDMS 不能再当测试结果（目标是别的 benchmark）。
+  其余逐项不变：L0R0，ViT 解冻 + LLM 全参，adamw8bit，8 节点 x 1 卡，global batch 32，6 epoch。
+  对照组：1103_tiger/qwen2.5-vl-3B-nuplan-cf010-l0r0-cot-sft-navtrain-navtest-vit-unfreeze-tigris8n。
+
+model:
+  use_cot: true
+  cot_ratio: 0.75                   # reason_then_act / act_directly 的比例，和 103k CoT 基线一样
+  cot_in_prompt_ratio: 0.0
+  # 不加 model.cf（cf025-l0r0 那版这里是 cf.ratio 0.25）
+  # [tigris] 模型放 /shared（/home 配额紧）
+  pretrained_model_path: /shared/rc/llm-gen-agent/mhu/auto_vla/Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: true       # ★ ViT 解冻（1026 那版是 false）
+  train_lm_backbone: true
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:                            # 训练现在也读这里（§4 C4），和推理一致
+    min_pixels: 109760
+    max_pixels: 109760
+    # [2026-10-30] nuPlan 左前/右前喂 CAM_L0/R0（默认 L1R1 = 车身两侧 L1/R1，和 prompt 的 front-left/right 对不上）。
+    #   见 navsim/navsim/agents/autovla_agent.py AutoVLAAgentFeatureBuilder。评测 config 也要设成一样。
+    nuplan_side_cams: L0R0
+
+training:
+  logger: wandb
+  wandb_project: autovla-cf-sft
+  # [tigris] ckpt 放 /shared：实际路径 = <output_root>/sft/<启动时间戳>/
+  output_root: /shared/rc/llm-gen-agent/mhu/auto_vla/runs
+  strategy: ddp
+  fp32_master: true                 # 不能关，见 docs/0724/bf16_master_weights_bug.md
+  optimizer: adamw8bit              # 优化器状态 28GB -> 7GB，见 models/autovla.py configure_optimizers
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null
+  # global batch = batch_size × accum × GPU 数，保持 32（和 103k CoT 基线一致）。换节点数要同步改。
+  accumulate_grad_batches: 4        # 8 节点 x 1 卡: 1 x 4 x 8 = 32
+  num_nodes: 8                      # 启动脚本还会用 AUTOVLA_NUM_NODES 覆盖成实际节点数
+  # 选 ckpt / early stop 看 val_action_loss（tools/run_sft.py）：val_loss 按 token 平均，
+  # val 每个 epoch 随机抽 CoT / 直接出动作，动作 token 占比在变，val_loss 会无规律地抖。和 cf 那几版保持一致。
+  ckpt_monitor: val_action_loss
+
+data:
+  # camera 路径是相对路径（navtrain_cot: trainval/...，navtest_cot: test/...），由 sensor_data_path 拼成绝对路径
+  train:
+    json_dataset_path:
+      - /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot
+      - /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtest_cot
+    sensor_data_path:
+      - /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+      - /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+  val:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot_val
+    sensor_data_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0

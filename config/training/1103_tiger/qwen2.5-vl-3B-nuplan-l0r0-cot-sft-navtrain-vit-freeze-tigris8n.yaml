@@ -1,0 +1,75 @@
+name: qwen2.5-vl-3B-nuplan-l0r0-cot-sft-navtrain-vit-freeze-tigris8n
+description: >
+  = HF PhoenixHu/AutoVLA-SFT-cot-103k 的配方（0916_nvidia/qwen2.5-vl-3B-nuplan-cot-sft-navtrain-brev，
+  hparams.yaml 已核对），只把 nuPlan 侧前相机换成 L0R0。ViT 冻结 + LLM 全参，普通 adamw，
+  global batch 32，6 epoch，cot_ratio 0.75，无 cf。
+  搬到 tigris 必须改的：8 节点 x 1 卡 -> accum 8 -> 4（1 x 4 x 8 = 32）；路径换成 /shared；
+  navtrain_cot 是 10-27 在 tigris 重新生成的那份（docs/1026/cot_regen_navtrain.md，规则复现，
+  有 CoT 条数 100,222 和 brev 上的一样），相机路径是相对路径，所以 sensor_data_path 不能是 null。
+  另外 ckpt_monitor 设成 val_action_loss（只影响存哪个 ckpt，不影响训练），和 tigris 上其他跑一致。
+  ViT 解冻的对照：1028_tiger/qwen2.5-vl-3B-nuplan-l0r0-cot-sft-navtrain-vit-unfreeze-tigris8n。
+
+model:
+  use_cot: true
+  cot_ratio: 0.75                   # 和 103k 一样
+  cot_in_prompt_ratio: 0.0
+  # [tigris] 模型放 /shared（/home 配额紧）
+  pretrained_model_path: /shared/rc/llm-gen-agent/mhu/auto_vla/Qwen2.5-VL-3B-Instruct
+  train_vision_backbone: false      # ★ ViT 冻结（和 103k 一样）
+  train_lm_backbone: true           # LLM 全参（无 LoRA）
+  codebook_cache_path: "codebook_cache/agent_vocab.pkl"
+  trajectory:
+    num_poses: 10
+    interval_length: 0.5
+    time_horizon: 5.0
+  tokens:
+    action_start_id: 151665
+    ignore_index: -100
+    assistant_id: [151644, 77091]
+  video:
+    min_pixels: 109760
+    max_pixels: 109760
+    # ★ 唯一的配方改动：nuPlan 左前/右前喂 CAM_L0/R0（103k 是默认 L1R1）。
+    #   见 navsim/navsim/agents/autovla_agent.py AutoVLAAgentFeatureBuilder。评测 config 也要设成一样
+    #   （config/eval/1103/autovla-navtest-eval-cot-l0r0-tigris.yaml）。
+    nuplan_side_cams: L0R0
+
+training:
+  logger: wandb
+  wandb_project: autovla-cf-sft
+  # [tigris] ckpt 放 /shared：实际路径 = <output_root>/sft/<启动时间戳>/
+  output_root: /shared/rc/llm-gen-agent/mhu/auto_vla/runs
+  strategy: ddp
+  fp32_master: true                 # 不能关，见 docs/0724/bf16_master_weights_bug.md
+  # optimizer 不写 = 普通 adamw，和 103k 一样（ViT 冻结，显存比解冻 + adamw 的 82GiB 还低）
+  batch_size: 1
+  learning_rate: 2.0e-5
+  epochs: 6
+  num_workers: 8
+  weight_decay: 0.01
+  lr_warmup_step: 500
+  lr_step_frequency: 2000
+  lr_step_gamma: 0.98
+  train_sample_size: null
+  # global batch = batch_size × accum × GPU 数 = 1 x 4 x 8 = 32（103k 是 1 x 8 x 4）。换节点数要同步改。
+  accumulate_grad_batches: 4
+  num_nodes: 8                      # 启动脚本还会用 AUTOVLA_NUM_NODES 覆盖成实际节点数
+  ckpt_monitor: val_action_loss
+
+data:
+  # navtrain_cot 的 camera 路径是相对路径（trainval/...），由 sensor_data_path 拼成绝对路径
+  train:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot
+    sensor_data_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+  val:
+    json_dataset_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/navtrain_cot_val
+    sensor_data_path: /shared/rc/llm-gen-agent/mhu/auto_vla/nuplan/sensor_blobs
+
+inference:
+  batch_size: 1
+  num_workers: 4
+  sample:
+    max_length: 2048
+    temperature: 0.01
+    top_k: 0
+    top_p: 1.0
