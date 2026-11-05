@@ -5,8 +5,12 @@
 # 产出目录结构（AutoVLA 的 placeholder 替换机制要求的两级结构）：
 #   $ROOT/
 #   ├── maps/                    971MB
-#   ├── navsim_logs/{trainval,test}/*.pkl      1310 / 147 个 log
+#   ├── navsim_logs/
+#   │   ├── mini/                0.53GB
+#   │   ├── trainval/            7GB   (navtrain 的 log 来自 trainval metadata)
+#   │   └── test/                476MB
 #   └── sensor_blobs/
+#       ├── mini/                ~90GB (camera only)
 #       ├── trainval/            445GB (navtrain current+history)
 #       └── test/                128GB (navtest camera)
 #
@@ -16,18 +20,23 @@
 #     被忽略 -> 分片静默丢失（实际丢了 20 个 navtest log 才发现）。
 #   * 所有步骤幂等；中断后重跑自动续传，已完成的分片直接跳过。
 #   * tar 解出的目录里本身带 <split>/ 子层，直接 mv 会多套一层，已处理。
+#   * mini / test 的完成标记沿用 .done_mini_camera_* / .done_test_camera_*，
+#     已下完的数据重跑会跳过，不会按新标记名再拉一遍。
 #
 # 用法:
-#   bash download_nuplan_autovla.sh              # 全部
-#   bash download_nuplan_autovla.sh test         # 单步: maps|logs|navtrain|test
-#   bash download_nuplan_autovla.sh verify       # 只做完整性核对，不下载
+#   AUTOVLA_DATA_ROOT=/scratch/mh2803/vla/nuplan bash scripts/download_nuplan_autovla.sh
+#   bash scripts/download_nuplan_autovla.sh test          # 单步
+#   bash scripts/download_nuplan_autovla.sh mini_navtrain # maps + mini + trainval logs + navtrain
+#   bash scripts/download_nuplan_autovla.sh verify        # 只做完整性核对，不下载
+#   步骤名: maps | mini | logs | trainval_logs | navtrain | test | verify
+#           | mini_navtrain | trainval_test | all
 # ============================================================================
 set -uo pipefail
 
 SELF="$(readlink -f "$0")"
 REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
 ROOT="${AUTOVLA_DATA_ROOT:-/data/autovla_data/nuplan}"
-HF="https://huggingface.co/datasets/OpenDriveLab/OpenScene/resolve/main/openscene-v1.1"
+HF="${HF:-https://huggingface.co/datasets/OpenDriveLab/OpenScene/resolve/main/openscene-v1.1}"
 S3="https://s3.eu-central-1.amazonaws.com/avg-projects-2/navsim"
 PAR="${PAR:-4}"          # 本机 8 核且被训练任务占用，别调高
 
@@ -55,6 +64,27 @@ fetch_split() {
     echo "  ✓ $(basename "$marker")"
 }
 
+# meta_datas/ 里本身带 <split>/ 子目录，直接 mv 会多套一层
+install_meta() {
+    local split="$1"
+    if [ -d "openscene-v1.1/meta_datas/$split" ]; then
+        mv "openscene-v1.1/meta_datas/$split" "navsim_logs/$split"
+    else
+        mv openscene-v1.1/meta_datas "navsim_logs/$split"
+    fi
+    rm -rf openscene-v1.1
+}
+
+# 同盘硬链接搬 sensor；源目录可能再套一层 <split>/
+link_sensors() {
+    local split="$1"
+    local src="openscene-v1.1/sensor_blobs"
+    [ -d "$src/$split" ] && src="$src/$split"
+    mkdir -p "sensor_blobs/$split"
+    cp -rlf "$src"/* "sensor_blobs/$split/"
+    rm -rf openscene-v1.1
+}
+
 # ---------------------------------------------------------------------------
 # 1. maps (971 MB)
 # ---------------------------------------------------------------------------
@@ -68,52 +98,107 @@ step_maps() {
 }
 
 # ---------------------------------------------------------------------------
-# 2. metadata → navsim_logs/{trainval,test}
+# 2a. mini metadata + camera → navsim_logs/mini + sensor_blobs/mini (~90GB)
+#     lidar 不要（AutoVLA SensorConfig lidar_pc=False）
 # ---------------------------------------------------------------------------
+_one_mini() {
+    fetch_split "sensor_blobs/.done_mini_camera_$1" \
+                "$HF/openscene_sensor_mini_camera/openscene_sensor_mini_camera_$1.tgz" \
+                "_mini_$1.tgz"
+}
+
+step_mini() {
+    mkdir -p navsim_logs sensor_blobs
+
+    if have navsim_logs/mini; then
+        log "navsim_logs/mini 已存在，跳过"
+    else
+        log "下载 mini metadata"
+        fetch_split ".done_meta_mini" "$HF/openscene_metadata_mini.tgz" "meta_mini.tgz" || return 1
+        install_meta mini
+        log "navsim_logs/mini 完成 ($(ls navsim_logs/mini | wc -l) 个 log)"
+    fi
+
+    if have sensor_blobs/mini && have sensor_blobs/.done_mini_camera; then
+        log "sensor_blobs/mini 已完成，跳过"
+        return 0
+    fi
+
+    log "下载 mini camera (32 分片, ~90GB, 并行 $PAR，无 lidar)"
+    seq 0 31 | xargs -I{} -P "$PAR" \
+        env AUTOVLA_DATA_ROOT="$ROOT" HF="$HF" bash "$SELF" _one_mini {}
+
+    local n
+    n=$(find sensor_blobs -maxdepth 1 -regextype posix-extended \
+            -regex '.*/\.done_mini_camera_[0-9]+' | wc -l)
+    if [ "$n" -ne 32 ]; then
+        log "⚠️  mini camera 只完成 $n/32 个分片。重跑本步骤会自动续传缺失分片。"
+        return 1
+    fi
+
+    if [ -d openscene-v1.1/sensor_blobs ]; then
+        link_sensors mini
+    fi
+    touch sensor_blobs/.done_mini_camera
+    log "sensor_blobs/mini 完成 ($(ls sensor_blobs/mini | wc -l) 个 log)"
+}
+
+# ---------------------------------------------------------------------------
+# 2b. metadata → navsim_logs/{trainval,test}
+# ---------------------------------------------------------------------------
+step_one_logs() {
+    local split="$1"
+    if have "navsim_logs/$split"; then log "navsim_logs/$split 已存在，跳过"; return 0; fi
+    log "下载 $split metadata"
+    fetch_split ".done_meta_$split" "$HF/openscene_metadata_${split}.tgz" "meta_${split}.tgz" || return 1
+    install_meta "$split"
+    log "navsim_logs/$split 完成 ($(ls "navsim_logs/$split" | wc -l) 个 log)"
+}
+
 step_logs() {
     mkdir -p navsim_logs
-    for split in trainval test; do
-        if have "navsim_logs/$split"; then log "navsim_logs/$split 已存在，跳过"; continue; fi
-        log "下载 $split metadata"
-        fetch_split ".done_meta_$split" "$HF/openscene_metadata_${split}.tgz" "meta_${split}.tgz" || return 1
-        # ⚠️ meta_datas/ 里本身带 <split>/ 子目录，直接 mv 会多套一层
-        if [ -d "openscene-v1.1/meta_datas/$split" ]; then
-            mv "openscene-v1.1/meta_datas/$split" "navsim_logs/$split"
-        else
-            mv openscene-v1.1/meta_datas "navsim_logs/$split"
-        fi
-        rm -rf openscene-v1.1
-        log "navsim_logs/$split 完成 ($(ls "navsim_logs/$split" | wc -l) 个 log)"
-    done
+    step_one_logs trainval || return 1
+    step_one_logs test || return 1
+}
+
+step_trainval_logs() {
+    mkdir -p navsim_logs
+    step_one_logs trainval
 }
 
 # ---------------------------------------------------------------------------
 # 3. navtest camera → sensor_blobs/test  (32 分片, 128GB)
+#    标记名 .done_test_camera_* 与本机已完成的下载一致
 # ---------------------------------------------------------------------------
 _one_test() {
-    fetch_split "sensor_blobs/.done_test_$1" \
+    fetch_split "sensor_blobs/.done_test_camera_$1" \
                 "$HF/openscene_sensor_test_camera/openscene_sensor_test_camera_$1.tgz" \
                 "_test_$1.tgz"
 }
 
 step_test() {
     mkdir -p sensor_blobs
-    log "下载 navtest camera (32 分片, 128GB, 并行 $PAR)"
-    seq 0 31 | xargs -I{} -P "$PAR" bash "$SELF" _one_test {}
+    if have sensor_blobs/test && have sensor_blobs/.done_test_camera; then
+        log "sensor_blobs/test 已完成，跳过"
+        return 0
+    fi
 
-    local n; n=$(ls sensor_blobs/.done_test_* 2>/dev/null | wc -l)
+    log "下载 navtest camera (32 分片, 128GB, 并行 $PAR)"
+    seq 0 31 | xargs -I{} -P "$PAR" \
+        env AUTOVLA_DATA_ROOT="$ROOT" HF="$HF" bash "$SELF" _one_test {}
+
+    local n
+    n=$(find sensor_blobs -maxdepth 1 -regextype posix-extended \
+            -regex '.*/\.done_test_camera_[0-9]+' | wc -l)
     if [ "$n" -ne 32 ]; then
         log "⚠️  只完成 $n/32 个分片。重跑本步骤会自动续传缺失分片。"
         return 1
     fi
 
     if [ -d openscene-v1.1/sensor_blobs ]; then
-        local src=openscene-v1.1/sensor_blobs
-        [ -d "$src/test" ] && src="$src/test"
-        mkdir -p sensor_blobs/test
-        cp -rlf "$src"/* sensor_blobs/test/     # 同盘硬链接，秒级；-f 覆盖已有
-        rm -rf openscene-v1.1
+        link_sensors test
     fi
+    touch sensor_blobs/.done_test_camera
     log "sensor_blobs/test 完成 ($(ls sensor_blobs/test | wc -l) 个 log)"
 }
 
@@ -171,12 +256,27 @@ PY
 main() {
     log "目标目录: $ROOT"; df -h "$ROOT" | tail -1
     case "${1:-all}" in
-        maps) step_maps ;; logs) step_logs ;;
-        test) step_test ;; navtrain) step_navtrain ;;
-        verify) step_verify ;;
-        _one_test) _one_test "$2" ;;          # 内部：xargs 单分片入口
-        all)  step_maps && step_logs && step_test && step_navtrain && step_verify ;;
-        *) echo "未知步骤: $1 (maps|logs|test|navtrain|verify|all)"; exit 1 ;;
+        maps)          step_maps ;;
+        mini)          step_mini ;;
+        logs)          step_logs ;;
+        trainval_logs) step_trainval_logs ;;
+        navtrain)      step_navtrain ;;
+        test)          step_test ;;
+        verify)        step_verify ;;
+        # maps + mini + navtrain（含 trainval logs），不下 test
+        mini_navtrain) step_maps && step_mini && step_trainval_logs && step_navtrain ;;
+        # trainval sensors + test camera + 两边 metadata
+        trainval_test) step_logs && step_navtrain && step_test ;;
+        _one_mini)     _one_mini "$2" ;;
+        _one_test)     _one_test "$2" ;;
+        all)           step_maps && step_logs && step_test && step_navtrain && step_verify ;;
+        *)
+            echo "未知步骤: $1"
+            echo "可选: maps | mini | logs | trainval_logs | navtrain | test | verify | mini_navtrain | trainval_test | all"
+            exit 1
+            ;;
     esac
 }
+
 main "$@"
+exit $?
