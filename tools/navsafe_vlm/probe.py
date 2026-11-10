@@ -53,7 +53,9 @@ def image(run, tok, f, width, cam="cam_f0"):
 # 分任务判时，标注里不归这个 prompt 管的类别改成 NONE
 TASKS = {"all": (), "vru": ("BLOCKED",), "blocked": ("PEDESTRIAN", "CYCLIST", "ANIMAL")}
 
-ALIASES = {"OBSTACLE": "BLOCKED", "VEHICLE": "BLOCKED", "YES": "BLOCKED", "NO": "NONE"}   # v4 把 BLOCKED 拆成"前方有车"   # simlingo 的 taskA prompt 用 OBSTACLE
+ALIASES = {"OBSTACLE": "BLOCKED", "VEHICLE": "BLOCKED", "YES": "BLOCKED", "NO": "NONE",   # v4 把 BLOCKED 拆成"前方有车"   # simlingo 的 taskA prompt 用 OBSTACLE
+           # v28 / v29（CoLT 格式，七个标签）：绕左 / 绕右也是"前方有障碍物"，NavSafe 的标注里都记成 BLOCKED
+           "AROUND_LEFT": "BLOCKED", "AROUND_RIGHT": "BLOCKED"}
 
 
 _SPEED = {}
@@ -76,7 +78,7 @@ def parse(text):
     if not hits:
         return "UNPARSED"
     # 先描述再给 token 的 prompt：取最后一个 <TOKEN>（描述里可能顺口提到别的词）
-    br = [(m.start(), ALIASES.get(m.group(1), m.group(1))) for m in re.finditer(r"<([A-Z]+)>", text.upper())
+    br = [(m.start(), ALIASES.get(m.group(1), m.group(1))) for m in re.finditer(r"<([A-Z_]+)>", text.upper())
           if m.group(1) in LABELS + tuple(ALIASES)]
     return max(br)[1] if br else min(hits)[1]
 

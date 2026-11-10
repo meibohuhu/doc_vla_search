@@ -1,0 +1,14 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look at the car's lane ahead: the stretch of road the car will drive over in the next few seconds, starting right in front of the car.
+Is there anything on the road surface in the car's lane, other than vehicles driving or waiting in traffic? If you are not sure, assume there is. People on the sidewalk do not count.
+Answer with exactly one token.
+If it is a person or an animal:
+<PEDESTRIAN> if it is a person, whatever they are doing
+<CYCLIST> if it is a person riding a bicycle or scooter
+<ANIMAL> if it is an animal
+For anything else, compare the free road on the left side of it and on the right side of it, as seen in the photo:
+<AROUND_LEFT> if there is more free road on the left side of it in the photo
+<AROUND_RIGHT> if there is more free road on the right side of it in the photo
+<BLOCKED> only if it covers the whole width of the road, from edge to edge, with no free road on either side
+<NONE> only if the car's lane ahead is empty road, with nothing on it except painted markings
+Output only the token.

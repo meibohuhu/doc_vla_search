@@ -1,0 +1,10 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look only at the car's path: the stretch of road the car will drive over in the next few seconds, starting right in front of the car. When the car is turning, its path bends toward the turn. Ignore the sidewalk, cars parked along the curb, other lanes, the oncoming lane, and anything that stays there.
+People on the sidewalk, at a building entrance or at the corner are normal and do not count. A person on the road surface in the car's path or moving into it counts, whatever they are doing: walking, standing, kneeling, sitting, lying, or using a wheelchair.
+Something very close to the car may show up only partly, at the bottom or side edge of the photo, and may look very large. It still counts.
+Answer with exactly one token:
+<PEDESTRIAN> if a person is in the car's path or is moving into it, for example crossing the road in front of the car, working on the road, or using a wheelchair or stroller. A small delivery robot moving with people counts as a person.
+<CYCLIST> if a person riding a bicycle or scooter is ahead in the car's lane, riding along it or crossing it. A bicycle or scooter lying on the road with nobody riding it is not a cyclist.
+<ANIMAL> if an animal is in the car's path or is moving into it, even if only part of it is visible, or if an animal is standing on the road or crosswalk where the car is about to turn
+<NONE> if none of the above: the path is clear, or there are only vehicles, objects with no person or animal, cars parked at the curb, people on the sidewalk, or traffic cones and road work along the side
+If several apply, answer the one closest to the car. Output only the token.

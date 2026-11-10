@@ -1,0 +1,10 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look only at the car's path: the stretch of road the car will drive over in the next few seconds, starting right in front of the car. When the car is turning, its path bends toward the turn.
+Is there something on the car's path that the car should not drive over or through? Vehicles moving in traffic or waiting in line in front of the car do not count. Flat marks on the road surface and light things the car can safely drive over do not count.
+If there is, look at the road on each side of it.
+Answer with exactly one token:
+<AROUND_LEFT> if the car can get past it on the left
+<AROUND_RIGHT> if the car can get past it on the right
+<BLOCKED> only if it covers the whole width of the road, from edge to edge, so the car cannot get past on either side
+<NONE> if there is nothing on the car's path that the car should not drive over
+If both sides are free, choose the side with more free road and prefer staying on the car's own side of the road. Output only the token.

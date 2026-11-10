@@ -399,9 +399,13 @@ class AutoVLAAgent(AbstractAgent):
                 )
                 self.autovla.vlm = get_peft_model(self.autovla.vlm, lora_config)
         
-        state_dict: Dict[str, Any] = torch.load(self._checkpoint_path, 
-                                                map_location=self.autovla.device)["state_dict"]
+        # [mh 2026-11-06] 原来 map_location=self.autovla.device：整个 state_dict 先搬上 GPU 再拷进参数，
+        # 每个进程加载时显存峰值多出约 7 GB，同卡并发 3 个就 OOM。先读到 CPU（mmap），load_state_dict 照样拷进
+        # GPU 上的参数，结果完全一样。
+        state_dict: Dict[str, Any] = torch.load(self._checkpoint_path, map_location="cpu",
+                                                mmap=True, weights_only=False)["state_dict"]
         self.autovla.load_state_dict( {k.replace("autovla.", ""): v for k, v in state_dict.items()}, strict=False)
+        del state_dict
 
     def name(self) -> str:
         """Inherited, see superclass."""

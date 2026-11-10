@@ -1,0 +1,14 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look at the car's lane ahead: the stretch of road the car will drive over in the next few seconds, starting right in front of the car.
+Is there anything on the road surface in the car's lane, other than vehicles driving or waiting in traffic? If you are not sure, assume there is. People on the sidewalk do not count.
+First decide the category, using exactly one of these tokens:
+<PEDESTRIAN> if it is a person, whatever they are doing
+<CYCLIST> if it is a person riding a bicycle or scooter
+<ANIMAL> if it is an animal
+<OBSTACLE> if it is anything else
+<NONE> only if the car's lane ahead is empty road, with nothing on it except painted markings
+Then, unless the category is <NONE>, add a second token saying what the car should do:
+after <PEDESTRIAN> or <ANIMAL>, answer <STOP> if it is in the car's lane or already stepping into it, or <SLOW> if it is still at the edge of the lane and may yet stay out of the car's way
+after <CYCLIST>, answer <SLOW>
+after <OBSTACLE>, look where it is within the car's lane, as seen in the photo, and steer away from it: answer <LANE_LEFT> if it is on the right part of the lane, or in the middle with more free road on its left; <LANE_RIGHT> if it is on the left part of the lane, or in the middle with more free road on its right; or <WAIT> only if it covers the whole width of the road, from edge to edge, with no free road on either side
+Output only the tokens, category first, nothing else. After <NONE>, output nothing more.

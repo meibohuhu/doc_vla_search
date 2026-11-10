@@ -1,0 +1,15 @@
+This photo was taken by a camera on the windshield of a car, looking forward. The car with the camera is not in the photo. The car is driving at {speed} m/s.
+Look only at the car's path: the stretch of road the car will drive over in the next few seconds, starting right in front of the car. When the car is turning, its path bends toward the turn. Ignore the sidewalk, cars parked along the curb, other lanes, the oncoming lane, and anything that stays there.
+People standing or walking on the sidewalk, at a building entrance or at the corner are normal and do not count. Any person on the road surface in the car's path counts, whatever they are doing.
+Something very close to the car may show up only partly, at the bottom or side edge of the photo, and may look very large. It still counts.
+Answer with exactly one token.
+First, if there is a person or an animal:
+<PEDESTRIAN> if a person is in the car's path or is walking into it, for example crossing the road in front of the car. A small delivery robot moving with people counts as a person.
+<CYCLIST> if a person riding a bicycle or scooter is ahead in the car's lane, riding along it or crossing it
+<ANIMAL> if an animal is in the car's path or is moving into it, even if only part of it is visible, or if an animal is standing on the road or crosswalk where the car is about to turn
+Otherwise, if there is anything else on the road surface in the car's lane, other than vehicles driving or waiting in traffic (if you are not sure, assume there is), compare the free road to its left and to its right:
+<AROUND_LEFT> if there is more free road to its left
+<AROUND_RIGHT> if there is more free road to its right
+<BLOCKED> only if it covers the whole width of the road, from edge to edge, with no free road on either side
+<NONE> only if the car's lane ahead is empty road, with nothing on it except painted markings
+A person or animal in the path comes before everything else. Output only the token.

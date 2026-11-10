@@ -31,6 +31,8 @@ PY=/home/mh2803/miniconda3/envs/autovla_codeclean/bin/python
 RUN_DIR="${RUN_DIR:-$REPO/runs/sft/2026-07-25_05-05-57}"   # checkpoint 所在目录
 CKPT="${CKPT:-}"                    # 留空则自动挑 RUN_DIR 里 val_loss 最低的那个
 GPU="${GPU:-2}"                     # 单张卡
+GPUS="${GPUS:-$GPU}"               # [mh 2026-11-06] 多卡：GPUS="0 1 2" 时第 s 片放在第 s%n 张卡上；不设 = 全压在 $GPU 上（原行为）
+read -ra GPU_LIST <<< "$GPUS"
 NSHARD="${NSHARD:-3}"              # 并发进程数 = 分片数（都压在同一张 GPU 上）
 LIMIT="${LIMIT:-1000}"            # 1000=可比子集(seed42)；12146 或 0 = 全量
 SEED="${SEED:-42}"
@@ -80,7 +82,7 @@ NAME=$(basename "$CKPT" .ckpt | tr '=' '_' | tr '.' '_')
 echo "=================================================================="
 echo " checkpoint  : $CKPT"
 echo " eval config : $EVAL_CONFIG   (use_cot=$USECOT，no-CoT SFT 须为 False)"
-echo " GPU         : $GPU   |   分片/并发: $NSHARD"
+echo " GPU         : $GPUS   |   分片/并发: $NSHARD"
 echo " 场景数      : $LIMIT   (seed=$SEED 随机抽样；12146/0=全量)"
 echo " 输出        : $WORK/$NAME"
 echo "=================================================================="
@@ -116,8 +118,9 @@ echo
 rm -rf "$WORK/$NAME"/shard*
 for s in $(seq 0 $((NSHARD-1))); do
     d="$WORK/$NAME/shard$s"; mkdir -p "$d"
-    echo "  GPU $GPU  <-  $NAME  shard$s"
-    CUDA_VISIBLE_DEVICES=$GPU NAVSIM_EXP_ROOT="$d" \
+    g=${GPU_LIST[$((s % ${#GPU_LIST[@]}))]}
+    echo "  GPU $g  <-  $NAME  shard$s"
+    CUDA_VISIBLE_DEVICES=$g NAVSIM_EXP_ROOT="$d" \
     $PY "$NAVSIM_DEVKIT_ROOT/navsim/planning/script/run_pdm_score_cot.py" \
         train_test_split="${TAG}_shard${s}of${NSHARD}" \
         agent=autovla_agent \
@@ -132,7 +135,7 @@ for s in $(seq 0 $((NSHARD-1))); do
 done
 
 echo
-echo "已启动 $NSHARD 个进程（都在 GPU $GPU）。等待..."
+echo "已启动 $NSHARD 个进程（GPU：$GPUS）。等待..."
 wait
 
 # ---- 合并所有分片 -> 单个 PDMS ----

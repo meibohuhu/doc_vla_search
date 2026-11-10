@@ -122,6 +122,25 @@ vfull 全量结果：**73.9%**。
 
 目标是一步调用、约 70%，不追求更高，给后面的 OPD 留空间。
 
+### 2.3 论文里放的版本
+
+[v28_single_f0_paper.txt](../../tools/navsafe_vlm/prompts/v28_single_f0_paper.txt) 是放进论文的版本，格式和 Fail2Drive 的 `taskA_v2_action_paper.txt` 一样，先输出类别，再输出动作，动作词表也和 Fail2Drive 一致（2026-11-05 定）。
+
+| 类别 token | Scene report | 动作 token | Suggestion |
+|---|---|---|---|
+| `<PEDESTRIAN>` | A pedestrian is on the road ahead. | `<STOP>` / `<SLOW>` | come to a stop / slow down |
+| `<CYCLIST>` | A cyclist is on the road ahead. | `<SLOW>` | slow down |
+| `<ANIMAL>` | An animal is on the road ahead. | `<STOP>` / `<SLOW>` | come to a stop / slow down |
+| `<OBSTACLE>` | An obstacle is ahead in the ego lane. | `<LANE_LEFT>` / `<LANE_RIGHT>` / `<WAIT>` | change lanes to the left / right / come to a stop |
+| `<NONE>` | 不给指令 | — | — |
+
+两个 token 合起来，和 v28 的单个标签 + 2.1 的映射表对应：OBSTACLE + LANE_LEFT = AROUND_LEFT，OBSTACLE + LANE_RIGHT = AROUND_RIGHT，OBSTACLE + WAIT = BLOCKED。判断条件的原文和 v28 相同。
+
+用它跑 CoLT 或 NavSafe 之前要改两处：
+
+- colt_probe：加两 token 的解析。
+- eval_autovla.py / NavSafe 的 `HazardCommander`：PEDESTRIAN / ANIMAL + SLOW 要发 "slow down"。
+
 ## 3. AutoVLA：输出 meta-action
 
 ### 3.1 模型
@@ -315,7 +334,71 @@ VLM 答 NONE 时红线和灰线重合。图下方写着每种指令、模型的 
 |---|---|
 | [08 掉落的车轮，左转路口](colt_examples/08_NP17_O26_center_v_full.png) | 导航 TURN LEFT，车速 3.2 m/s。三种指令下都输出 `ACCELERATE,LEFT`（顺着路口左转加速），忽略了 "change lanes to the left"。这是 36 个样本里唯一不照做的 |
 
-## 8. 结果文件
+## 8. 要加的对比方法（待做）
+
+CoLT 只考"纵向 + 横向"一对动作，所以不管什么模型，最后都要读成一对 CoLT 动作，再查 `acceptable_pairs`。
+
+**原则（2026-11-05 定）**：优先选能输出 meta-action 或文字的模型。只出轨迹的模型不放进表里，除非用文字问它能正常回答。
+
+| 模型输出 | 读法 |
+|---|---|
+| 自带 meta-action | 固定映射表，最干净 |
+| 自由文字 | CoLT 官方 LLM judge |
+| 只有轨迹 | 3.4 节的轨迹读数：速度看 3 s 内的变化，横向看 3 s 处的位移。转弯样本的横向不准，表里单独标出 |
+
+**单帧输入**：AutoVLA、Senna 训练时是多路相机，CoLT 只有一张前视图，要补其余几路，属于分布外输入。Impromptu VLA、MTDrive、ReCogDrive 原生就是单张前视图。
+
+同一张表里口径要一致：同时有文字和轨迹的模型，要定好读哪一个。
+
+### 8.1 要加的：Senna、Impromptu VLA
+
+两个都放了权重、在 nuScenes 上训过、能读出 meta-action。
+
+**Senna-VLM**（hustvl，arXiv 2410.22313）
+
+| 项 | 内容 |
+|---|---|
+| 权重 | 7B（vicuna-7b-v1.5），HF `rb93dett/Senna` |
+| 训练数据 | DriveX 预训练 + nuScenes 微调 |
+| 输入 | 当前一帧的 6 路环视。单帧没问题；但 CoLT 只有前视图，另外 5 路要补（复制前视图或全黑），和 AutoVLA 一样是分布外输入 |
+| 输出 | 格式化的 meta-action，官方有 `eval_tools/senna_plan_cmd_eval_multi_img.sh` 测 meta-action 准确率 |
+| 读法 | 写一张 Senna meta-action → CoLT 的映射表 |
+
+要先查清：
+- 横向有没有换道 / 绕行。如果只有直行 / 左转 / 右转，CoLT 的绕行它答不出来。
+- prompt 里有没有车速和导航指令。
+
+去 repo 的 data converter 里看。
+
+**Impromptu VLA**（NeurIPS 2025 D&B，arXiv 2505.23757，代码在本地 `/home/mh2803/vla/Impromptu-VLA`）
+
+| 项 | 内容 |
+|---|---|
+| 权重 | HF `aaaaaap/ImpromptuVLAModel`：3B / 7B × {Base+nuScenes（`*_Base_finetune`）、Base+Impromptu（`*_AD`）、Base+Impromptu+nuScenes（`*_AD_finetune`）} |
+| 训练数据 | Qwen2.5-VL，和我们同一个底座。Impromptu 数据来自 8 个数据集（含 nuScenes、NAVSIM），专门收集非常规路况 |
+| 输入 | **单张前视图 + 文字自车状态**：速度、加速度、转向角、历史位置（`nuscenes_test.json` 里是 `(t-0.0s) [0.0, 0.0]`，即没有历史位置）。和 CoLT 的设定基本一致，不用补相机。CoLT 没有转向角，填 0 |
+| 输出 | 规划任务输出文字形式的 3 s 轨迹（`<PLANNING>… [x, y] × 6</PLANNING>`），没有 meta-action |
+| 读法 | **优先用 meta planning 问答**：`*_AD` 版训练时有这类问答，`<Meta Planning>` 里用自然语言说速度 / 方向 / 车道，读出来用关键词映射或 LLM judge。`*_finetune` 版还会不会答要试。规划任务的文字轨迹只作为对照 |
+
+### 8.2 也可以测：MTDrive、ReCogDrive（NAVSIM 训的）
+
+两个都在 NavSafe 的 HF model zoo（`c13752hz/NavSafe`，`model_zoo/mtdrive`、`model_zoo/recogdrive`），这台机器上还没下载。NavSafe 里的接法见 `safe-nav-search/navsafe/modelzoo/navsim/vla_server/{mtdrive,recogdrive}_server.py`。
+
+| 模型 | 结构 | 输入 | 训练时的输出 |
+|---|---|---|---|
+| MTDrive（arXiv 2601.22930，HF `chenchaoxNV/mtdrive-models`，33 GB） | Qwen2.5-VL-7B；只放了 checkpoint，没放代码，NavSafe 按论文复现了单轮推理 | 单张前视图 + 4 个历史位姿 + 导航指令（ReCogDrive 的 prompt 原文） | 文字轨迹 `[PT, (x, y, heading) × 8]`（4 s） |
+| ReCogDrive（xiaomi-research，5 GB） | InternVL3-2B VLM + DiT 扩散规划器；NavSafe 里只取 VLM 的 hidden state 给规划器 | 同上 | VLM 第一阶段也用同样的 prompt 输出 `[PT, …]` 文字轨迹；规划器出轨迹 |
+
+- **输入正好是单张前视图**，不用补相机。CoLT 没有历史位置，只有过去 2 s 的车速，按直线行驶由车速反推 4 个历史位姿。导航按 3.2 节的对应填。
+- **两个都没有 meta-action 输出，排在 8.1 之后**：
+  - 先抽几个样本，用文字问它们 CoLT 的问题（纵向 + 横向动作）。两个都是在轨迹格式上 SFT 的，可能只会吐轨迹。
+  - 能正常回答，就用 LLM judge 读，放进表里；只会吐轨迹，就不放。
+
+### 8.3 已有
+
+Alpamayo（NVIDIA，输出推理文字 + 轨迹）已经有了。它不是在 nuScenes / nuPlan 上训的，表里要标明。
+
+## 9. 结果文件
 
 | 内容 | 路径 |
 |---|---|
